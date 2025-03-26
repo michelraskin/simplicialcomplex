@@ -1,6 +1,6 @@
 CXX = g++
 
-CXXFLAGS = -Wall -Wextra -std=c++20
+CXXFLAGS = -I /opt/homebrew/include/eigen3 -Wall -Wextra -std=c++20
 
 TARGET = simplicial_complex
 
@@ -14,7 +14,7 @@ $(TARGET): $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJ)
 
 %.o: %.cpp $(DEPS)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@ 
 
 clean:
 	rm -f $(OBJ) $(TARGET)

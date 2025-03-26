@@ -4,9 +4,11 @@
 #include <vector>
 #include <iomanip>
 #include <string>
+#include <Eigen/Dense>
 #include "Simplex.hpp"
 
 using namespace std;
+using namespace Eigen;
 
 class SimplicialComplex {
 private:
@@ -15,7 +17,7 @@ private:
 
     std::array<unordered_set<Simplex>, MaxDimension> theSimplicesPerDim;
     std::array<vector<Simplex>, MaxDimension> theSimplicesPerDimOrdered;
-    std::array<std::vector<std::vector<int8_t>>, MaxDimension> theBoundaries{};
+    std::array<MatrixXd, MaxDimension> theBoundaries{};
 
     vector<unordered_set<string>> theConnectedComponents;
 
@@ -82,19 +84,22 @@ public:
     void computeBoundary(size_t aDim, bool aOriented = true)
     {
         // Can refactor here by getting subsimplices
-        auto myInitialBoundary = std::vector<std::vector<int8_t>>{};
+        auto myRows = (theSimplicesPerDimOrdered[aDim-1].size() == 0) ? 1 : theSimplicesPerDimOrdered[aDim-1].size();
+        auto myColumns = theSimplicesPerDimOrdered[aDim].size();
+        theBoundaries[aDim].resize(myRows, myColumns);
         if (theSimplicesPerDimOrdered[aDim-1].size() == 0)
         {
-            auto myRow = std::vector<int8_t>{};
+            size_t i = 0;
             for (auto myValue2 : theSimplicesPerDimOrdered[aDim])
             {
-                myRow.push_back(0);
+                theBoundaries[aDim](0,i) = 0;
+                i++;
             }
-            myInitialBoundary.push_back(myRow);
         }
+        size_t i = 0;
         for (auto myValue : theSimplicesPerDimOrdered[aDim-1])
         {
-            auto myRow = std::vector<int8_t>{};
+            size_t j = 0;
             for (auto myValue2 : theSimplicesPerDimOrdered[aDim])
             {
                 const auto& mySubSimplices = myValue2.getSubSimplices();
@@ -104,21 +109,21 @@ public:
                     if (aOriented)
                     {
                         size_t index = std::distance(mySubSimplices.begin(), myIndex);
-                        myRow.push_back(myValue2.getSubSimplices().at(index).getOrientation());
+                        theBoundaries[aDim](i,j) = (myValue2.getSubSimplices().at(index).getOrientation());
                     }
                     else
                     {
-                        myRow.push_back(1);
+                        theBoundaries[aDim](i,j) = (1);
                     }
                 }
                 else
                 {
-                    myRow.push_back(0);
+                    theBoundaries[aDim](i,j) = (0);
                 }
+                j++;
+            }
+            i++;
         }
-            myInitialBoundary.push_back(myRow);
-        }
-        theBoundaries[aDim] = myInitialBoundary;
     }
 
     void printFunction(auto aThingsToPrint, bool aEndl = true)
@@ -161,24 +166,22 @@ public:
 
     void printBoundary(size_t aDim)
     {
-        size_t i = 0;
         cout << endl;
         cout << "A input vector shape: " << endl;
         printFunction(theSimplicesPerDimOrdered[aDim], true);
         cout << endl;
-        for (auto myRow : theBoundaries[aDim])
+        for (long i = 0; i < theBoundaries[aDim].rows(); i++)
         {
             if (theSimplicesPerDimOrdered[aDim-1].size() > 0)
             {
                 printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim-1][i]}, false); 
             }
             std::cout << "  [";
-            for (auto myElem : myRow)
+            for (long j = 0; j < theBoundaries[aDim].cols(); j++)
             {
-                std::cout << setw(4) << (int)myElem << " ";
+                std::cout << setw(4) << (int)theBoundaries[aDim](i,j) << " ";
             }
             std::cout << "]" << std::endl;
-            i++;
         }
         cout << endl;
     }
