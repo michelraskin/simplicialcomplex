@@ -57,18 +57,18 @@ void rowEchelon(MatrixXd &mat) {
 };
 
 MatrixXd kernel(const MatrixXd& A) {
-    FullPivLU<MatrixXd> lu_decomp(A);
-    return lu_decomp.kernel();  // Returns a basis for the null space
+    FullPivLU<MatrixXd> myLuDecomp(A);
+    return myLuDecomp.kernel();  
 };
 
 MatrixXd image(const MatrixXd& A) {
-    FullPivLU<MatrixXd> lu_decomp(A);
-    return lu_decomp.image(A);  // Returns a basis for the column space
+    FullPivLU<MatrixXd> myLuDecomp(A);
+    return myLuDecomp.image(A); 
 };
 
 MatrixXd rowEchelon(const MatrixXd& A) {
-    FullPivLU<MatrixXd> lu(A);
-    MatrixXd U = lu.matrixLU().triangularView<Upper>(); // Upper triangular (Row Echelon Form)
+    FullPivLU<MatrixXd> myLuDecomp(A);
+    MatrixXd U = myLuDecomp.matrixLU().triangularView<Upper>(); 
     return U;
 };
 
