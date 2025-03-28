@@ -35,21 +35,27 @@ int main() {
 
     cout << "===== Simplicial Complex A =====" << endl;
     SimplicialComplex myComplexA(mySimplicesA);
-    // myComplexA.printComplex();
+    myComplexA.printComplex();
     for (size_t i = 1; i < 4; i++)
     {
         std::cout << "Printing Boundary del " << i -1 << std::endl;
-        myComplexA.printBoundary(i);
+        myComplexA.printBoundaryMatrix(i);
+        myComplexA.printBoundaryImage(i);
+        myComplexA.printBoundaryKernel(i);
+        myComplexA.printHomology(i);
     }
     cout << endl;
 
     cout << "===== Simplicial Complex B =====" << endl;
     SimplicialComplex myComplexB(mySimplicesB);
-    // myComplexB.printComplex();
+    myComplexB.printComplex();
     for (size_t i = 1; i < 4; i++)
     {
         std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
-        myComplexB.printBoundary(i);
+        myComplexB.printBoundaryMatrix(i);
+        myComplexB.printBoundaryImage(i);
+        myComplexB.printBoundaryKernel(i);
+        myComplexB.printHomology(i);
     }
     cout << endl;
 

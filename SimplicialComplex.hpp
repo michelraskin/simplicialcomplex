@@ -6,6 +6,7 @@
 #include <string>
 #include <Eigen/Dense>
 #include "Simplex.hpp"
+#include "SimplexUtils.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -68,22 +69,28 @@ public:
 
             theConnectedComponents = myNewConnectedComponents;
         }
-        for (size_t i = 1; i < 4; i++)
+        for (size_t i = 0; i < 5; i++)
         {
             for (auto myValue : theSimplicesPerDim[i])
             {
                 theSimplicesPerDimOrdered[i].push_back(myValue);
             }
         }
-        for (size_t i = 1; i < 4; i++)
+        for (size_t i = 0; i < 5; i++)
         {
-            computeBoundary(i);
+            computeBoundaryMatrix(i);
         }
     }
 
-    void computeBoundary(size_t aDim, bool aOriented = true)
+    void computeBoundaryMatrix(size_t aDim, bool aOriented = true)
     {
         // Can refactor here by getting subsimplices
+        if (theSimplicesPerDimOrdered[aDim].size() == 0)
+        {
+            theBoundaries[aDim].resize(1, 1);
+            theBoundaries[aDim](0, 0) = 0;
+            return;
+        }
         auto myRows = (theSimplicesPerDimOrdered[aDim-1].size() == 0) ? 1 : theSimplicesPerDimOrdered[aDim-1].size();
         auto myColumns = theSimplicesPerDimOrdered[aDim].size();
         theBoundaries[aDim].resize(myRows, myColumns);
@@ -144,8 +151,8 @@ public:
     void printComplex() 
     {
         cout << "Simplicial Complex (set of all simplices): " << endl;
-        printFunction(theSimplices);
-        cout << endl;
+        // printFunction(theSimplices);
+        // cout << endl;
 
         cout << "Vertices: " << endl;
         printFunction(theSimplicesPerDim[1]);
@@ -164,7 +171,7 @@ public:
         cout << endl;
     }
 
-    void printBoundary(size_t aDim)
+    void printBoundaryMatrix(size_t aDim)
     {
         cout << endl;
         cout << "A input vector shape: " << endl;
@@ -182,6 +189,96 @@ public:
                 std::cout << setw(4) << (int)theBoundaries[aDim](i,j) << " ";
             }
             std::cout << "]" << std::endl;
+        }
+        cout << endl;
+    }
+
+    void printBoundaryImage(size_t aDim)
+    {
+        cout << endl;
+        cout << "An image (p-chain is span of this) " << aDim-1 << ": " << endl;
+        MatrixXd myMat = image(theBoundaries[aDim]);
+        for (long i = 0; i < myMat.rows(); i++)
+        {
+            if (theSimplicesPerDimOrdered[aDim-1].size() > 0)
+            {
+                printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim-1][i]}, false); 
+            }
+            for (long j = 0; j < myMat.cols(); j++)
+            {
+                std::cout << "  [";
+                std::cout << setw(4) << (int)myMat(i,j) << " ";
+                std::cout << "]";
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }
+
+    void printBoundaryKernel(size_t aDim)
+    {
+        cout << endl;
+        cout << "A kernel " << aDim-1 << ": " << endl;
+        MatrixXd myMat = kernel(theBoundaries[aDim]);
+        for (long i = 0; i < myMat.rows(); i++)
+        {
+            printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim][i]}, false); 
+            for (long j = 0; j < myMat.cols(); j++)
+            {
+                std::cout << "  [";
+                std::cout << setw(4) << (int)myMat(i,j) << " ";
+                std::cout << "]";
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }
+
+    void printHomology(size_t aDim)
+    {
+        cout << endl;
+        cout << "A homology " << aDim-1 << ": " << endl;
+        MatrixXd myBoundaryDimPlus1 = image(theBoundaries[aDim+1]);
+        MatrixXd myKernel = kernel(theBoundaries[aDim]);
+        auto myHomologyRows = getRank(myKernel) - getRank(myBoundaryDimPlus1);
+        MatrixXd myHomology(myKernel.rows(), myKernel.cols());
+        if (getRank(myBoundaryDimPlus1) > 0)
+        {
+            FullPivLU<MatrixXd> mySolver(myBoundaryDimPlus1);
+            MatrixXd myLinearDependence = mySolver.solve(myKernel);
+            for (long i = 0; i < myLinearDependence.cols(); i++)
+            {
+                if (myLinearDependence.col(i).squaredNorm() == 0)
+                {
+                    myHomology.col(i) = myKernel.col(i);
+                }
+            }
+        }
+        else
+        {
+            myHomology = myKernel;
+        }
+        
+        cout << "Rank of kernel: " << getRank(myKernel) << endl;
+        cout << "Rank of boundary of dim + 1: " << getRank(myBoundaryDimPlus1) << endl;
+        cout << "Expected Homology Rank " << myHomologyRows << endl;
+        cout << "Actual Homology Rank " << getRank(myHomology) << endl;
+        for (long i = 0; i < myHomology.rows(); i++)
+        {
+            if (theSimplicesPerDimOrdered[aDim].size() > 0)
+            {
+                printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim][i]}, false); 
+            }
+            for (long j = 0; j < myHomology.cols(); j++)
+            {
+                if (myHomology.col(j).squaredNorm() > 0)
+                {
+                    std::cout << "  [";
+                    std::cout << setw(4) << (int)myHomology(i,j) << " ";
+                    std::cout << "]";
+                }
+            }
+            cout << endl;
         }
         cout << endl;
     }

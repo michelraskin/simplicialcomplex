@@ -27,7 +27,7 @@ public:
         for (size_t i = 0; i < size(); i++)
         {
             auto mySubSimplex = eject(i);
-            theSubSimplices.push_back(Simplex(mySubSimplex, (i % 2) ? -1 : 1));
+            theSubSimplices.push_back(Simplex(mySubSimplex, (i % 2) ? 1 : -1));
         }
     }
 
@@ -109,14 +109,3 @@ std::ostream& operator<<(std::ostream& out, const Simplex& aSimplex) {
     out << "}";
     return out;
 }
-
-template <>
-struct hash<Simplex> {
-    size_t operator()(const Simplex& aSimplex) const {
-        size_t hashValue = 0;
-        for (const auto& vertex : aSimplex.getUnorientedSimplex()) {
-            hashValue ^= hash<string>{}(vertex) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
-        }
-        return hashValue;
-    }
-};
