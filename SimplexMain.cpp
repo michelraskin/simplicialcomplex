@@ -33,6 +33,10 @@ int main() {
         {"Oyster", "Broccoli", "Apple"}, {"Oyster", "Onion", "Apple"}
     };
 
+    vector<vector<string>> mySimplicesC = {
+        {"A", "B"},{"A", "C"}, {"A", "D"},{"B", "E"},{"C", "E"},{"D", "E"}
+    };
+
     cout << "===== Simplicial Complex A =====" << endl;
     SimplicialComplex myComplexA(mySimplicesA);
     myComplexA.printComplex();
@@ -56,6 +60,19 @@ int main() {
         myComplexB.printBoundaryImage(i);
         myComplexB.printBoundaryKernel(i);
         myComplexB.printHomology(i);
+    }
+    cout << endl;
+
+    cout << "===== Simplicial Complex C =====" << endl;
+    SimplicialComplex myComplexC(mySimplicesC);
+    myComplexC.printComplex();
+    for (size_t i = 1; i < 3; i++)
+    {
+        std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
+        myComplexC.printBoundaryMatrix(i);
+        myComplexC.printBoundaryImage(i);
+        myComplexC.printBoundaryKernel(i);
+        myComplexC.printHomology(i);
     }
     cout << endl;
 

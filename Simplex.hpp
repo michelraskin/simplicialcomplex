@@ -80,6 +80,11 @@ public:
         return true;
     }
 
+    bool operator<(const Simplex& aOtherSimplex) const 
+    {
+        return theOrientedSimplex < aOtherSimplex.getOrientedSimplex();
+    }
+
     size_t size() const
     {
         return theOrientedSimplex.size();

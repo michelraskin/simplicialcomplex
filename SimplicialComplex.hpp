@@ -75,6 +75,7 @@ public:
             {
                 theSimplicesPerDimOrdered[i].push_back(myValue);
             }
+            std::stable_sort(theSimplicesPerDimOrdered[i].begin(), theSimplicesPerDimOrdered[i].end());
         }
         for (size_t i = 0; i < 5; i++)
         {
