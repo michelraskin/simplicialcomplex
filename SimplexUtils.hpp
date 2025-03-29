@@ -21,41 +21,6 @@ struct hash<Simplex> {
     }
 };
 
-void rowEchelon(MatrixXd &mat) {
-    int rows = mat.rows();
-    int cols = mat.cols();
-    int lead = 0;
-
-    for (int r = 0; r < rows; ++r) {
-        if (lead >= cols)
-            return;
-
-        int i = r;
-        while (mat(i, lead) == 0) {
-            i++;
-            if (i == rows) {
-                i = r;
-                lead++;
-                if (lead == cols)
-                    return;
-            }
-        }
-
-        // Swap rows i and r
-        mat.row(i).swap(mat.row(r));
-
-        // Normalize pivot row
-        mat.row(r) /= mat(r, lead);
-
-        // Eliminate all rows below
-        for (int j = r + 1; j < rows; ++j) {
-            mat.row(j) -= mat(j, lead) * mat.row(r);
-        }
-
-        lead++;
-    }
-};
-
 MatrixXd kernel(const MatrixXd& A) {
     FullPivLU<MatrixXd> myLuDecomp(A);
     return myLuDecomp.kernel();  

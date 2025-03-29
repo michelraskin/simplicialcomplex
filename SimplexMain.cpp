@@ -44,6 +44,7 @@ int main() {
     {
         std::cout << "Printing Boundary del " << i -1 << std::endl;
         myComplexA.printBoundaryMatrix(i);
+        myComplexA.printBoundaryComplex(i);
         myComplexA.printBoundaryImage(i);
         myComplexA.printBoundaryKernel(i);
         myComplexA.printHomology(i);
@@ -57,6 +58,7 @@ int main() {
     {
         std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
         myComplexB.printBoundaryMatrix(i);
+        myComplexB.printBoundaryComplex(i);
         myComplexB.printBoundaryImage(i);
         myComplexB.printBoundaryKernel(i);
         myComplexB.printHomology(i);
@@ -70,6 +72,7 @@ int main() {
     {
         std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
         myComplexC.printBoundaryMatrix(i);
+        myComplexC.printBoundaryComplex(i);
         myComplexC.printBoundaryImage(i);
         myComplexC.printBoundaryKernel(i);
         myComplexC.printHomology(i);

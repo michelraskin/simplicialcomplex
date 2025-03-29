@@ -19,6 +19,7 @@ private:
     std::array<unordered_set<Simplex>, MaxDimension> theSimplicesPerDim;
     std::array<vector<Simplex>, MaxDimension> theSimplicesPerDimOrdered;
     std::array<MatrixXd, MaxDimension> theBoundaries{};
+    std::array<MatrixXd, MaxDimension> theBoundariesUnoriented{};
 
     vector<unordered_set<string>> theConnectedComponents;
 
@@ -79,28 +80,30 @@ public:
         }
         for (size_t i = 0; i < 5; i++)
         {
-            computeBoundaryMatrix(i);
+            computeBoundaryMatrix(i, true);
+            computeBoundaryMatrix(i, false);
         }
     }
 
-    void computeBoundaryMatrix(size_t aDim, bool aOriented = true)
+    void computeBoundaryMatrix(size_t aDim, bool aOriented = false)
     {
         // Can refactor here by getting subsimplices
+        auto& myBoundary = aOriented ? theBoundaries[aDim] : theBoundariesUnoriented[aDim];
         if (theSimplicesPerDimOrdered[aDim].size() == 0)
         {
-            theBoundaries[aDim].resize(1, 1);
-            theBoundaries[aDim](0, 0) = 0;
+            myBoundary.resize(1, 1);
+            myBoundary(0, 0) = 0;
             return;
         }
         auto myRows = (theSimplicesPerDimOrdered[aDim-1].size() == 0) ? 1 : theSimplicesPerDimOrdered[aDim-1].size();
         auto myColumns = theSimplicesPerDimOrdered[aDim].size();
-        theBoundaries[aDim].resize(myRows, myColumns);
+        myBoundary.resize(myRows, myColumns);
         if (theSimplicesPerDimOrdered[aDim-1].size() == 0)
         {
             size_t i = 0;
             for (auto myValue2 : theSimplicesPerDimOrdered[aDim])
             {
-                theBoundaries[aDim](0,i) = 0;
+                myBoundary(0,i) = 0;
                 i++;
             }
         }
@@ -117,16 +120,16 @@ public:
                     if (aOriented)
                     {
                         size_t index = std::distance(mySubSimplices.begin(), myIndex);
-                        theBoundaries[aDim](i,j) = (myValue2.getSubSimplices().at(index).getOrientation());
+                        myBoundary(i,j) = (myValue2.getSubSimplices().at(index).getOrientation());
                     }
                     else
                     {
-                        theBoundaries[aDim](i,j) = (1);
+                        myBoundary(i,j) = (1);
                     }
                 }
                 else
                 {
-                    theBoundaries[aDim](i,j) = (0);
+                    myBoundary(i,j) = (0);
                 }
                 j++;
             }
@@ -190,6 +193,29 @@ public:
                 std::cout << setw(4) << (int)theBoundaries[aDim](i,j) << " ";
             }
             std::cout << "]" << std::endl;
+        }
+        cout << endl;
+    }
+
+    void printBoundaryComplex(size_t aDim)
+    {
+        cout << endl;
+        cout << "A unoriented boundary of the complex on dimension " << aDim-1 << ": " << endl;
+        MatrixXd myMat = theBoundariesUnoriented[aDim];
+        VectorXd myVec(myMat.cols());
+        myVec.setOnes();
+        MatrixXd myMatMulti = myMat * myVec;
+        MatrixXi myFinalMat = myMatMulti.unaryExpr([](int x) { return x % 2; });
+        for (long i = 0; i < myMat.rows(); i++)
+        {
+            if (theSimplicesPerDimOrdered[aDim-1].size() > 0)
+            {
+                printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim-1][i]}, false); 
+            }
+            std::cout << "  [";
+            std::cout << setw(4) << (int)myFinalMat(i) << " ";
+            std::cout << "]";
+            cout << endl;
         }
         cout << endl;
     }
