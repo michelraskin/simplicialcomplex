@@ -269,17 +269,13 @@ public:
         MatrixXd myKernel = kernel(theBoundaries[aDim]);
         auto myHomologyRows = getRank(myKernel) - getRank(myBoundaryDimPlus1);
         MatrixXd myHomology(myKernel.rows(), myKernel.cols());
+        myHomology.setZero();
         if (getRank(myBoundaryDimPlus1) > 0)
         {
             FullPivLU<MatrixXd> mySolver(myBoundaryDimPlus1);
             MatrixXd myLinearDependence = mySolver.solve(myKernel);
-            for (long i = 0; i < myLinearDependence.cols(); i++)
-            {
-                if (myLinearDependence.col(i).squaredNorm() == 0)
-                {
-                    myHomology.col(i) = myKernel.col(i);
-                }
-            }
+            MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
+            myHomology = myKernel * myLinearDependenceKernel;
         }
         else
         {
