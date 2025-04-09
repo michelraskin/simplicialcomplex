@@ -13,7 +13,7 @@ class Simplex
     unordered_set<string> theUnorientedSimplex;
     vector<string> theOrientedSimplex;
     int64_t theOrientation;
-    vector<Simplex> theSubSimplices;
+    set<Simplex> theSubSimplices;
 
 public:
     Simplex(vector<string> aOrientedSimplex, int64_t aOrientation = 1)
@@ -27,7 +27,7 @@ public:
         for (size_t i = 0; i < size(); i++)
         {
             auto mySubSimplex = eject(i);
-            theSubSimplices.push_back(Simplex(mySubSimplex, (i % 2) ? 1 : -1));
+            theSubSimplices.insert(Simplex(mySubSimplex, (i % 2) ? 1 : -1));
         }
     }
 
@@ -102,12 +102,14 @@ public:
 
     bool contains(const Simplex& aOtherSimplex) const
     {
-        auto thisVec = theOrientedSimplex;
-        auto otherVec = aOtherSimplex.getOrientedSimplex();
-        std::sort(thisVec.begin(), thisVec.end());
-        std::sort(otherVec.begin(), otherVec.end());
-        return std::includes(thisVec.begin(), thisVec.end(),
-                         otherVec.begin(), otherVec.end());
+        for (const auto& element : aOtherSimplex.getUnorientedSimplex())
+        {
+            if (theUnorientedSimplex.find(element) == theUnorientedSimplex.end()) 
+            {
+                return false; 
+            }
+        }
+        return true; 
     }
 };
 

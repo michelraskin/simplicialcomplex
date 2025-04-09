@@ -1,6 +1,6 @@
 CXX = g++
 
-CXXFLAGS = -I /opt/homebrew/include/eigen3 -Wall -Wextra -std=c++20
+CXXFLAGS = -I /opt/homebrew/include/eigen3 -Wall -Wextra -std=c++20 -O3 -flto -march=native -funroll-loops -ffast-math 
 
 TARGET = simplicial_complex
 

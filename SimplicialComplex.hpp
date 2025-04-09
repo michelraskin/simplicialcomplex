@@ -91,12 +91,25 @@ public:
         }
         for (size_t i = 0; i < MaxDimension; i++)
         {
-            computeBoundaryMatrix(i, true);
-            computeBoundaryMatrix(i, false);
+            auto now = std::chrono::system_clock::now();
+            std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+            std::cout << "[" << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "] "
+                    << "Computing oriented boundary " << i << std::endl;
+
+            computeBoundaryMatrix<true>(i);
+
+            // // Print time again
+            // now = std::chrono::system_clock::now();
+            // now_c = std::chrono::system_clock::to_time_t(now);
+            // std::cout << "[" << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "] "
+            //         << "Computing unoriented boundary " << i << std::endl;
+
+            // computeBoundaryMatrix<false>(i);
         }
     }
 
-    void computeBoundaryMatrix(size_t aDim, bool aOriented = false)
+    template<bool aOriented = false>
+    void computeBoundaryMatrix(size_t aDim)
     {
         // Can refactor here by getting subsimplices
         auto& myBoundary = aOriented ? theBoundaries[aDim] : theBoundariesUnoriented[aDim];
@@ -119,6 +132,7 @@ public:
             }
         }
         size_t i = 0;
+        myBoundary.setZero(myRows, myColumns);
         for (auto myValue : theSimplicesPerDimOrdered[aDim-1])
         {
             size_t j = 0;
@@ -128,19 +142,17 @@ public:
                 auto myIndex = find(mySubSimplices.begin(), mySubSimplices.end(), myValue);
                 if (myIndex != mySubSimplices.end())
                 {
-                    if (aOriented)
+                    if constexpr (aOriented)
                     {
                         size_t index = std::distance(mySubSimplices.begin(), myIndex);
-                        myBoundary(i,j) = (myValue2.getSubSimplices().at(index).getOrientation());
+                        auto it = mySubSimplices.begin();
+                        std::advance(it, index);   
+                        myBoundary(i,j) = ((*it).getOrientation());
                     }
                     else
                     {
                         myBoundary(i,j) = (1);
                     }
-                }
-                else
-                {
-                    myBoundary(i,j) = (0);
                 }
                 j++;
             }

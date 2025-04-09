@@ -49,11 +49,16 @@ public:
     {
         for (double myRadius = 0; myRadius < theMaxDistance + aRadius; myRadius+=aRadius)
         {
+            std::cout << " Radius "  << myRadius << std::endl;
             unordered_set<Simplex> mySimplices{};
             auto myNewSimplex = getOneDimensionalSimplex(mySimplices);
+            std::cout << "Computing edges" << std::endl;
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
+            std::cout << "Computing Triangles" << std::endl;
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
+            std::cout << "Computing Tetrahedra" << std::endl;
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
+            std::cout << "Computing Simplicial" << std::endl;
             auto mySimplicialComplex = SimplicialComplex{mySimplices};
             mySimplicialComplex.printComplex();
             for (size_t i = 1; i < 5; i++)
