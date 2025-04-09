@@ -5,7 +5,7 @@ CXXFLAGS = -I /opt/homebrew/include/eigen3 -Wall -Wextra -std=c++20
 TARGET = simplicial_complex
 
 SRC = SimplexMain.cpp
-DEPS = Simplex.hpp SimplicialComplex.hpp
+DEPS = Simplex.hpp SimplicialComplex.hpp NerveComplex.hpp SimplexUtils.hpp
 OBJ = $(SRC:.cpp=.o)
 
 all: $(TARGET)

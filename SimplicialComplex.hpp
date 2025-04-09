@@ -13,7 +13,7 @@ using namespace Eigen;
 
 class SimplicialComplex {
 private:
-    static constexpr size_t MaxDimension = 3 + 2;
+    static constexpr size_t MaxDimension = 4 + 2;
     unordered_set<Simplex> theSimplices;
 
     std::array<unordered_set<Simplex>, MaxDimension> theSimplicesPerDim;
@@ -24,6 +24,17 @@ private:
     vector<unordered_set<string>> theConnectedComponents;
 
 public:
+    SimplicialComplex(unordered_set<Simplex> aSimplices) 
+    : SimplicialComplex([&aSimplices]() {
+        vector<vector<string>> mySimplices{};
+        for (const auto& mySimplex : aSimplices)
+        {
+            mySimplices.push_back(mySimplex.getOrientedSimplex());
+        }
+        return mySimplices;
+      }())
+      {}
+
     SimplicialComplex(vector<vector<string>> aSimplices) 
     {
         for (auto myStringVec : aSimplices) 
@@ -70,7 +81,7 @@ public:
 
             theConnectedComponents = myNewConnectedComponents;
         }
-        for (size_t i = 0; i < 5; i++)
+        for (size_t i = 0; i < MaxDimension; i++)
         {
             for (auto myValue : theSimplicesPerDim[i])
             {
@@ -78,7 +89,7 @@ public:
             }
             std::stable_sort(theSimplicesPerDimOrdered[i].begin(), theSimplicesPerDimOrdered[i].end());
         }
-        for (size_t i = 0; i < 5; i++)
+        for (size_t i = 0; i < MaxDimension; i++)
         {
             computeBoundaryMatrix(i, true);
             computeBoundaryMatrix(i, false);
@@ -159,15 +170,19 @@ public:
         // cout << endl;
 
         cout << "Vertices: " << endl;
-        printFunction(theSimplicesPerDim[1]);
+        printFunction(theSimplicesPerDimOrdered[1]);
         cout << endl;
 
         cout << "Edges: " << endl;
-        printFunction(theSimplicesPerDim[2]);
+        printFunction(theSimplicesPerDimOrdered[2]);
         cout << endl;
 
         cout << "Triangles: " << endl;
-        printFunction(theSimplicesPerDim[3]);
+        printFunction(theSimplicesPerDimOrdered[3]);
+        cout << endl;
+
+        cout << "Tetrahedra: " << endl;
+        printFunction(theSimplicesPerDimOrdered[4]);
         cout << endl;
 
         cout << "Connected Components: " << endl;
@@ -224,6 +239,10 @@ public:
     {
         cout << endl;
         cout << "An image (p-chain is span of this) " << aDim-1 << ": " << endl;
+        if (theBoundaries[aDim].size() == 0)
+        {  
+            return; 
+        }
         MatrixXd myMat = image(theBoundaries[aDim]);
         for (long i = 0; i < myMat.rows(); i++)
         {
@@ -246,6 +265,10 @@ public:
     {
         cout << endl;
         cout << "A kernel " << aDim-1 << ": " << endl;
+        if (theBoundaries[aDim].size() == 0 || theSimplicesPerDimOrdered[aDim].size() == 0)
+        {  
+            return; 
+        }
         MatrixXd myMat = kernel(theBoundaries[aDim]);
         for (long i = 0; i < myMat.rows(); i++)
         {
@@ -261,10 +284,14 @@ public:
         cout << endl;
     }
 
-    void printHomology(size_t aDim)
+    size_t printHomology(size_t aDim, bool aPrintMatrix = true)
     {
         cout << endl;
         cout << "A homology " << aDim-1 << ": " << endl;
+        if ((theBoundaries[aDim].size() == 0) || (theBoundaries[aDim+1].size() == 0))
+        {  
+            return 0; 
+        }
         MatrixXd myBoundaryDimPlus1 = image(theBoundaries[aDim+1]);
         MatrixXd myKernel = kernel(theBoundaries[aDim]);
         auto myHomologyRows = getRank(myKernel) - getRank(myBoundaryDimPlus1);
@@ -286,23 +313,31 @@ public:
         cout << "Rank of boundary of dim + 1: " << getRank(myBoundaryDimPlus1) << endl;
         cout << "Expected Homology Rank " << myHomologyRows << endl;
         cout << "Actual Homology Rank " << getRank(myHomology) << endl;
-        for (long i = 0; i < myHomology.rows(); i++)
+        if (getRank(myHomology) != myHomologyRows)
         {
-            if (theSimplicesPerDimOrdered[aDim].size() > 0)
+            throw std::runtime_error("Mismatch In Homology!");
+        }
+        if (aPrintMatrix)
+        {
+            for (long i = 0; i < myHomology.rows(); i++)
             {
-                printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim][i]}, false); 
-            }
-            for (long j = 0; j < myHomology.cols(); j++)
-            {
-                if (myHomology.col(j).squaredNorm() > 0)
+                if (theSimplicesPerDimOrdered[aDim].size() > 0)
                 {
-                    std::cout << "  [";
-                    std::cout << setw(4) << (int)myHomology(i,j) << " ";
-                    std::cout << "]";
+                    printFunction(unordered_set<Simplex>{theSimplicesPerDimOrdered[aDim][i]}, false); 
                 }
+                for (long j = 0; j < myHomology.cols(); j++)
+                {
+                    if (myHomology.col(j).squaredNorm() > 0)
+                    {
+                        std::cout << "  [";
+                        std::cout << setw(4) << (int)myHomology(i,j) << " ";
+                        std::cout << "]";
+                    }
+                }
+                cout << endl;
             }
-            cout << endl;
         }
         cout << endl;
+        return getRank(myHomology);
     }
 };

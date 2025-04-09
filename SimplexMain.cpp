@@ -5,6 +5,7 @@
 #include <string>
 #include "Simplex.hpp"
 #include "SimplicialComplex.hpp"
+#include "NerveComplex.hpp"
 
 using namespace std;
 
@@ -34,7 +35,7 @@ int main() {
     };
 
     vector<vector<string>> mySimplicesC = {
-        {"A", "B"},{"A", "C"}, {"A", "D"},{"B", "E"},{"C", "E"},{"D", "E"}
+        {"A", "B"},{"A", "C"}, {"A", "D"},{"B", "E"},{"C", "E"},{"D", "E"}, {"B", "C"}
     };
 
     cout << "===== Simplicial Complex A =====" << endl;
@@ -68,7 +69,7 @@ int main() {
     cout << "===== Simplicial Complex C =====" << endl;
     SimplicialComplex myComplexC(mySimplicesC);
     myComplexC.printComplex();
-    for (size_t i = 1; i < 3; i++)
+    for (size_t i = 1; i < 5; i++)
     {
         std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
         myComplexC.printBoundaryMatrix(i);
@@ -77,6 +78,11 @@ int main() {
         myComplexC.printBoundaryKernel(i);
         myComplexC.printHomology(i);
     }
+    cout << endl;
+
+
+    cout << "===== Neve Complex 1 =====" << endl;
+    NerveComplex myNeverComplex1("CDHWdata_1.csv");
     cout << endl;
 
     return 0;

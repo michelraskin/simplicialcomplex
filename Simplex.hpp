@@ -100,9 +100,14 @@ public:
         return theOrientedSimplex.end();
     }
 
-    bool contains(const Simplex& aOtherSimplex)
+    bool contains(const Simplex& aOtherSimplex) const
     {
-        return includes(theUnorientedSimplex.begin(), theUnorientedSimplex.end(), aOtherSimplex.getUnorientedSimplex().begin(), aOtherSimplex.getUnorientedSimplex().end());
+        auto thisVec = theOrientedSimplex;
+        auto otherVec = aOtherSimplex.getOrientedSimplex();
+        std::sort(thisVec.begin(), thisVec.end());
+        std::sort(otherVec.begin(), otherVec.end());
+        return std::includes(thisVec.begin(), thisVec.end(),
+                         otherVec.begin(), otherVec.end());
     }
 };
 
