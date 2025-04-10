@@ -38,6 +38,21 @@ int main() {
         {"A", "B"},{"A", "C"}, {"A", "D"},{"B", "E"},{"C", "E"},{"D", "E"}, {"B", "C"}
     };
 
+    Simplex simplex1{vector<string>{"11", "12", "13"}};
+
+    Simplex simplex2{vector<string>{"13", "12", "11"}};
+
+    std::unordered_set<Simplex> mySet;
+    std::cout << "Inserting simplex1: " << simplex1 << std::endl;
+    mySet.insert(simplex1);
+    std::cout << "Inserting simplex2: " << simplex2 << std::endl;
+    mySet.insert(simplex2);
+
+    std::cout << "Set contents:" << std::endl;
+    for (const auto& s : mySet) {
+        std::cout << s << std::endl;
+    }
+
     cout << "===== Simplicial Complex A =====" << endl;
     SimplicialComplex myComplexA(mySimplicesA);
     myComplexA.printComplex();
@@ -82,7 +97,7 @@ int main() {
 
 
     cout << "===== Neve Complex 1 =====" << endl;
-    NerveComplex myNeverComplex1("CDHWdata_1.csv");
+    NerveComplex myNeverComplex1("CDHWdata_2.csv");
     cout << endl;
 
     return 0;

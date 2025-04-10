@@ -13,13 +13,15 @@ using namespace Eigen;
 
 class SimplicialComplex {
 private:
-    static constexpr size_t MaxDimension = 4 + 2;
+    static constexpr size_t MaxDimension = 7;
     unordered_set<Simplex> theSimplices;
 
     std::array<unordered_set<Simplex>, MaxDimension> theSimplicesPerDim;
     std::array<vector<Simplex>, MaxDimension> theSimplicesPerDimOrdered;
     std::array<MatrixXd, MaxDimension> theBoundaries{};
     std::array<MatrixXd, MaxDimension> theBoundariesUnoriented{};
+
+    std::array<MatrixXd, MaxDimension> theHomologies{};
 
     vector<unordered_set<string>> theConnectedComponents;
 
@@ -31,6 +33,7 @@ public:
         {
             mySimplices.push_back(mySimplex.getOrientedSimplex());
         }
+        std::stable_sort(mySimplices.begin(), mySimplices.end());
         return mySimplices;
       }())
       {}
@@ -89,6 +92,11 @@ public:
             }
             std::stable_sort(theSimplicesPerDimOrdered[i].begin(), theSimplicesPerDimOrdered[i].end());
         }
+        for (size_t i = 0; i < MaxDimension; i++)
+        {
+            std::cout << "Simplex of dim " << i << " has size " << theSimplicesPerDim[i].size() << std::endl;
+        }
+        std::cout << "Number of connected components " << theConnectedComponents.size() << std::endl;
         for (size_t i = 0; i < MaxDimension; i++)
         {
             auto now = std::chrono::system_clock::now();
@@ -329,6 +337,11 @@ public:
         {
             throw std::runtime_error("Mismatch In Homology!");
         }
+        if (aDim == 0 && ((size_t)myHomologyRows != theConnectedComponents.size()))
+        {
+            throw std::runtime_error("Mismatch In connected components!");
+        }
+        theHomologies[aDim-1] = myHomology;
         if (aPrintMatrix)
         {
             for (long i = 0; i < myHomology.rows(); i++)
@@ -351,5 +364,10 @@ public:
         }
         cout << endl;
         return getRank(myHomology);
+    }
+
+    void printEulerCharacteristic() 
+    {
+        std::cout << "Euler Characteristic is: " << getRank(theHomologies[0]) - getRank(theHomologies[1]) + getRank(theHomologies[2]) << std::endl;
     }
 };

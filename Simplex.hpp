@@ -24,6 +24,7 @@ public:
             theUnorientedSimplex.insert(myVertex);
             theOrientedSimplex.push_back(myVertex);
         }
+        std::stable_sort(theOrientedSimplex.begin(), theOrientedSimplex.end());
         for (size_t i = 0; i < size(); i++)
         {
             auto mySubSimplex = eject(i);
@@ -66,18 +67,7 @@ public:
 
     bool operator==(const Simplex& aOtherSimplex) const 
     {
-        if (aOtherSimplex.size() != theUnorientedSimplex.size())
-        {
-            return false;
-        }
-        for (const auto& myVertex : theUnorientedSimplex)
-        {
-            if (!aOtherSimplex.getUnorientedSimplex().contains(myVertex))
-            {
-                return false;
-            }
-        }
-        return true;
+        return theUnorientedSimplex == aOtherSimplex.getUnorientedSimplex();
     }
 
     bool operator<(const Simplex& aOtherSimplex) const 

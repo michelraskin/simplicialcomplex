@@ -24,9 +24,10 @@ template <>
 struct hash<Simplex> {
     size_t operator()(const Simplex& aSimplex) const {
         size_t hashValue = 0;
-        for (const auto& vertex : aSimplex.getUnorientedSimplex()) {
-            hashValue ^= hash<string>{}(vertex) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+        for (const auto& vertex : aSimplex.getOrientedSimplex()) {
+            hashValue ^= std::hash<std::string>{}(vertex) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
         }
+
         return hashValue;
     }
 };

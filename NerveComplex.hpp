@@ -24,7 +24,7 @@ public:
         // sortRowsByColumn(theDistanceMatrixSorted, 2);
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
-        doFiltration(1);
+        doFiltration(0.1, theMaxDistance / 3 + 1);
     }
 
     MatrixXd calculateDistances()
@@ -45,9 +45,9 @@ public:
         return myDistanceMatrix;
     }
 
-    void doFiltration(double aRadius)
+    void doFiltration(double aRadius, double aMaxRadius)
     {
-        for (double myRadius = 0; myRadius < theMaxDistance + aRadius; myRadius+=aRadius)
+        for (double myRadius = 0; myRadius < aMaxRadius + aRadius; myRadius+=aRadius)
         {
             std::cout << " Radius "  << myRadius << std::endl;
             unordered_set<Simplex> mySimplices{};
@@ -60,12 +60,26 @@ public:
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
             std::cout << "Computing Simplicial" << std::endl;
             auto mySimplicialComplex = SimplicialComplex{mySimplices};
-            mySimplicialComplex.printComplex();
+            // mySimplicialComplex.printComplex();
             for (size_t i = 1; i < 5; i++)
             {
                 std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
-                mySimplicialComplex.printHomology(i, false);
+                mySimplicialComplex.printHomology(i, i==2);
             }
+            /*
+            TODO:
+            1. For each column in the homology function record when it's born (essentially when a cycle is born)
+            2. A cycle is born if it's not a linear combination of alive cycles at that step
+            3. Each step in order to do this check the dimensions (number of rows) need to be expanded to match
+            4. A cycle is dead when it's not a part of the current homologies
+
+            Implementation:
+            1. Vector that contains the born columns, the age where it was born and the age where it died
+            2. Each time something is born we push into the vector
+            3. When something dies we don't remove just keep and don't use to check against new born
+            4. Can check for linear dependence the same way I do for the kernel
+            */  
+            mySimplicialComplex.printEulerCharacteristic();
         }
     }
 
