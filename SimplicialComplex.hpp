@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <string>
 #include <Eigen/Dense>
+#include <algorithm>
 #include "Simplex.hpp"
 #include "SimplexUtils.hpp"
 
@@ -116,6 +117,16 @@ public:
         }
     }
 
+    const auto& getHomology(size_t aDim) const
+    {
+        return theHomologies[aDim];
+    }
+
+    const auto& getSimplicesPerDimOrdered(size_t aDim) const
+    {
+        return theSimplicesPerDimOrdered[aDim];
+    }
+
     template<bool aOriented = false>
     void computeBoundaryMatrix(size_t aDim)
     {
@@ -130,41 +141,29 @@ public:
         auto myRows = (theSimplicesPerDimOrdered[aDim-1].size() == 0) ? 1 : theSimplicesPerDimOrdered[aDim-1].size();
         auto myColumns = theSimplicesPerDimOrdered[aDim].size();
         myBoundary.resize(myRows, myColumns);
+        myBoundary.setZero(myRows, myColumns);
         if (theSimplicesPerDimOrdered[aDim-1].size() == 0)
         {
-            size_t i = 0;
-            for (auto myValue2 : theSimplicesPerDimOrdered[aDim])
-            {
-                myBoundary(0,i) = 0;
-                i++;
-            }
+            return;
         }
-        size_t i = 0;
-        myBoundary.setZero(myRows, myColumns);
-        for (auto myValue : theSimplicesPerDimOrdered[aDim-1])
+        size_t j = 0;
+        for (auto mySimplexBase : theSimplicesPerDimOrdered[aDim])
         {
-            size_t j = 0;
-            for (auto myValue2 : theSimplicesPerDimOrdered[aDim])
+            const auto& mySubSimplices = mySimplexBase.getSubSimplices();
+            for (const auto& mySubSimplex : mySubSimplices)
             {
-                const auto& mySubSimplices = myValue2.getSubSimplices();
-                auto myIndex = find(mySubSimplices.begin(), mySubSimplices.end(), myValue);
-                if (myIndex != mySubSimplices.end())
+                auto it = std::lower_bound(theSimplicesPerDimOrdered[aDim-1].begin(), theSimplicesPerDimOrdered[aDim-1].end(), mySubSimplex);
+                int i = it - theSimplicesPerDimOrdered[aDim-1].begin();
+                if constexpr (aOriented)
                 {
-                    if constexpr (aOriented)
-                    {
-                        size_t index = std::distance(mySubSimplices.begin(), myIndex);
-                        auto it = mySubSimplices.begin();
-                        std::advance(it, index);   
-                        myBoundary(i,j) = ((*it).getOrientation());
-                    }
-                    else
-                    {
-                        myBoundary(i,j) = (1);
-                    }
+                    myBoundary(i,j) = (mySubSimplex.getOrientation());
                 }
-                j++;
+                else
+                {
+                    myBoundary(i,j) = (1);
+                }
             }
-            i++;
+            j++;
         }
     }
 

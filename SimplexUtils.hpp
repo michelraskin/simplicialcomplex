@@ -114,3 +114,13 @@ void sortRowsByColumn(MatrixXd& mat, int colIndex) {
 
     mat = sorted;
 };
+
+bool isLinearlyIndependent(const MatrixXd& A, const VectorXd& v) {
+    MatrixXd Augmented(A.rows(), A.cols() + 1);
+    Augmented << A, v;
+
+    FullPivLU<MatrixXd> luA(A);
+    FullPivLU<MatrixXd> luAug(Augmented);
+
+    return luAug.rank() > luA.rank();
+};

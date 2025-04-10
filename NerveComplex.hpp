@@ -11,10 +11,21 @@ class NerveComplex {
 private:
     MatrixXd theMatrix;
     MatrixXd theDistanceMatrix;
+    std::vector<std::pair<SimplicialComplex, double>> theSimplicialComplexes{};
     // MatrixXd theDistanceMatrixSorted;
 
     double theMaxDistance;
     double theMinDistance;
+
+    struct BirthDeathStruct
+    {
+        VectorXd theVector;
+        double theBirth;
+        double theDeath;
+    };
+
+    std::array<vector<BirthDeathStruct>, 4> theBirhDeaths;
+
 public:
     NerveComplex(string aFile) 
     {
@@ -25,6 +36,12 @@ public:
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
         doFiltration(0.1, theMaxDistance / 3 + 1);
+
+        for (size_t myDim = 0; myDim < 5; myDim++)
+        {
+            std::cout << "Getting birth death of dimesion " << myDim << std::endl;
+            getBirthAndDeathRate(myDim);
+        }
     }
 
     MatrixXd calculateDistances()
@@ -66,6 +83,7 @@ public:
                 std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
                 mySimplicialComplex.printHomology(i, i==2);
             }
+            theSimplicialComplexes.push_back(std::pair<SimplicialComplex, double>(mySimplicialComplex, myRadius));
             /*
             TODO:
             1. For each column in the homology function record when it's born (essentially when a cycle is born)
@@ -78,10 +96,142 @@ public:
             2. Each time something is born we push into the vector
             3. When something dies we don't remove just keep and don't use to check against new born
             4. Can check for linear dependence the same way I do for the kernel
+
+            FullPivLU<MatrixXd> mySolver(myAlive);
+            MatrixXd myLinearDependence = mySolver.solve(myHomology);
+            MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
+            myHomology = myHomology * myLinearDependenceKernel; // Can also just check one by one
+
+
+            FullPivLU<MatrixXd> mySolver(myHomology);
+            MatrixXd myLinearDependence = mySolver.solve(myAlive);
+            MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
+            myHomology = myAlive * myLinearDependenceKernel; // Will return all dead cycles 
+
             */  
             mySimplicialComplex.printEulerCharacteristic();
         }
     }
+
+    void getBirthAndDeathRate(size_t aDim)
+    {   
+        vector<BirthDeathStruct> myBirthDeath{};
+        MatrixXd myCurrentBoundary{};
+        vector<Simplex> myCurrentIndex{};
+        for (const auto& [mySimplicial, myRadius] : theSimplicialComplexes)
+        {
+            auto myCurrentHomology = mySimplicial.getHomology(aDim);
+            if (myCurrentBoundary.size() == 0 || myCurrentIndex.size() == 0)
+            {
+                myCurrentBoundary = myCurrentHomology;
+                myCurrentIndex = mySimplicial.getSimplicesPerDimOrdered(aDim+1);
+                if (myCurrentIndex.size() > 0)
+                {
+                    for (long i = 0; i < myCurrentHomology.cols(); i++)
+                    {
+                        auto myBirthDeathSt = BirthDeathStruct{};
+                        myBirthDeathSt.theVector = myCurrentHomology.col(i);
+                        myBirthDeathSt.theBirth = myRadius;
+                        myBirthDeathSt.theDeath = -1;
+                        myBirthDeath.push_back(myBirthDeathSt);
+                    }
+                }
+            }
+            else
+            {
+                resizeBirthDeath(myBirthDeath, myCurrentBoundary, myCurrentIndex, mySimplicial.getSimplicesPerDimOrdered(aDim+1));
+                MatrixXd myNewBoundary(myCurrentBoundary.rows(), 0);
+                for (auto& myBd : myBirthDeath)
+                {
+                    if (myBd.theDeath == -1 && !isLinearlyIndependent(myCurrentHomology, myBd.theVector))
+                    {
+                        if (myNewBoundary.cols() == 0 || isLinearlyIndependent(myNewBoundary, myBd.theVector))
+                        {
+                            myNewBoundary.resize(myCurrentBoundary.rows(), myNewBoundary.cols() + 1);
+                            myNewBoundary.col(myNewBoundary.cols()-1) = myBd.theVector;
+                        }
+                        else
+                        {
+                            myBd.theDeath = myRadius;
+                        }
+                    }
+                    else if (myBd.theDeath == -1)
+                    {
+                        myBd.theDeath = myRadius;
+                    }
+                }
+                myCurrentBoundary = myNewBoundary;
+                for (long i = 0; i < myCurrentHomology.cols(); i++)
+                {
+                    if (isLinearlyIndependent(myCurrentBoundary, myCurrentHomology.col(i)))
+                    {
+                        auto myBirthDeathSt = BirthDeathStruct{};
+                        myBirthDeathSt.theVector = myCurrentHomology.col(i);
+                        myBirthDeathSt.theBirth = myRadius;
+                        myBirthDeathSt.theDeath = -1;
+                        if (!isLinearlyIndependent(myNewBoundary, myCurrentHomology.col(i)))
+                        {
+                            myBirthDeathSt.theDeath = myRadius;
+                        }
+                        else
+                        {
+                            myNewBoundary.resize(myCurrentBoundary.rows(), myNewBoundary.cols() + 1);
+                            myNewBoundary.col(myNewBoundary.cols()-1) = myCurrentHomology.col(i);
+                        }
+                        myBirthDeath.push_back(myBirthDeathSt);
+                    }
+                }
+                myCurrentBoundary = myNewBoundary;
+            }
+        }
+
+        for (auto& myBd : myBirthDeath)
+        {
+            std::cout << "Vector born at: " << myBd.theBirth << std::endl;
+            std::cout << "Vector deat at: " << myBd.theDeath << std::endl;
+            std::cout << myBd.theVector << std::endl;
+        }
+
+        theBirhDeaths[aDim] = myBirthDeath;
+    }
+
+    void resizeBirthDeath(vector<BirthDeathStruct>& aBirthDeath, MatrixXd& aCurrentBoundary, vector<Simplex>& myCurrentIndex, const auto& myNewIndex)
+    {
+        size_t j = 0;
+        for (size_t i = 0; i < myNewIndex.size(); i++)
+        {
+            if (myCurrentIndex[j] != myNewIndex[i])
+            {
+                for (auto& myBd : aBirthDeath)
+                {
+                    auto vec = myBd.theVector;
+                    VectorXd newVec(vec.size() + 1);
+                    if (j!= 0)
+                        newVec.head(j) = vec.head(j);
+                    newVec(j) = 0;
+                    newVec.tail(vec.size() - j) = vec.tail(vec.size() - j);
+                    myBd.theVector = newVec;
+                }
+            }
+            else
+            {
+                j++;
+            }
+        }
+        if (myNewIndex.size() > 0)
+        {
+            aCurrentBoundary.resize(myNewIndex.size(), aCurrentBoundary.cols());
+            size_t i = 0;
+            for (auto& myBd : aBirthDeath)
+            {
+                if (myBd.theDeath != -1)
+                {
+                    aCurrentBoundary.col(i) = myBd.theVector;
+                }
+            }
+            myCurrentIndex = myNewIndex;
+        }
+    }   
 
     unordered_set<Simplex> getOneDimensionalSimplex(unordered_set<Simplex>& aSimplices)
     {
