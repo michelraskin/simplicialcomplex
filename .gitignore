@@ -1,3 +1,8 @@
+analysis.txt 
+default.profdata 
+default.profraw 
+my_program 
+my_program.dSYM/* 
 *.o
 .vscode/
 *.csv
