@@ -56,41 +56,48 @@ int getNullity(const MatrixXd& A) {
     return A.cols() - A.fullPivLu().rank();
 };
 
-Eigen::MatrixXd readCsv(const std::string& filename) {
-    std::ifstream file(filename);
-    std::string line;
+Eigen::MatrixXd readCsv(const std::string& aFileName) {
+    std::ifstream myFile(aFileName);
+    std::string myLine;
 
-    std::vector<std::vector<double>> values;
-    std::size_t cols = 0;
+    std::vector<std::vector<double>> myValue;
+    std::size_t myCols = 0;
 
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string cell;
-        std::vector<double> row;
-        bool badRow = false;
+    while (std::getline(myFile, myLine)) 
+    {
+        std::stringstream mySs(myLine);
+        std::string myCell;
+        std::vector<double> myRow;
+        bool myBadRow = false;
 
-        while (std::getline(ss, cell, ',')) {
-            try {
-                row.push_back(std::stod(cell));
-            } catch (std::invalid_argument&) {
-                badRow = true;
+        while (std::getline(mySs, myCell, ',')) 
+        {
+            try 
+            {
+                myRow.push_back(std::stod(myCell));
+            } 
+            catch (std::invalid_argument&) 
+            {
+                myBadRow = true;
                 break;
             }
         }
 
-        if (!badRow) {
-            if (cols == 0) cols = row.size();
-            if (row.size() == cols) {
-                values.push_back(row);
+        if (!myBadRow) 
+        {
+            if (myCols == 0) myCols = myRow.size();
+            if (myRow.size() == myCols) 
+            {
+                myValue.push_back(myRow);
             }
         }
     }
 
-    Eigen::MatrixXd mat(values.size(), cols);
-    for (std::size_t i = 0; i < values.size(); ++i)
-        mat.row(i) = Eigen::VectorXd::Map(&values[i][0], cols);
+    Eigen::MatrixXd myMat(myValue.size(), myCols);
+    for (std::size_t i = 0; i < myValue.size(); ++i)
+        myMat.row(i) = Eigen::VectorXd::Map(&myValue[i][0], myCols);
 
-    return mat;
+    return myMat;
 };
 
 double getEuclideanDistance(VectorXd aVec1, VectorXd aVec2)
@@ -98,29 +105,13 @@ double getEuclideanDistance(VectorXd aVec1, VectorXd aVec2)
     return (aVec1 - aVec2).norm();
 };
 
-void sortRowsByColumn(MatrixXd& mat, int colIndex) {
-    std::vector<int> rowIndices(mat.rows());
-    std::iota(rowIndices.begin(), rowIndices.end(), 0);
+bool isLinearlyIndependent(const MatrixXd& A, const VectorXd& v) 
+{
+    MatrixXd myAugmented(A.rows(), A.cols() + 1);
+    myAugmented << A, v;
 
-    std::sort(rowIndices.begin(), rowIndices.end(),
-        [&mat, colIndex](int a, int b) {
-            return mat(a, colIndex) < mat(b, colIndex);  // ascending
-        });
+    FullPivLU<MatrixXd> myLuDecompA(A);
+    FullPivLU<MatrixXd> myLuDecompAug(myAugmented);
 
-    MatrixXd sorted(mat.rows(), mat.cols());
-    for (int i = 0; i < mat.rows(); ++i) {
-        sorted.row(i) = mat.row(rowIndices[i]);
-    }
-
-    mat = sorted;
-};
-
-bool isLinearlyIndependent(const MatrixXd& A, const VectorXd& v) {
-    MatrixXd Augmented(A.rows(), A.cols() + 1);
-    Augmented << A, v;
-
-    FullPivLU<MatrixXd> luA(A);
-    FullPivLU<MatrixXd> luAug(Augmented);
-
-    return luAug.rank() > luA.rank();
+    return myLuDecompAug.rank() > myLuDecompA.rank();
 };

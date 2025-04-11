@@ -33,11 +33,9 @@ public:
         theName = aFile;
         theMatrix = readCsv(aFile);
         theDistanceMatrix = calculateDistances();
-        // theDistanceMatrixSorted = theDistanceMatrix;
-        // sortRowsByColumn(theDistanceMatrixSorted, 2);
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
-        doFiltration(0.02, 2 * theMaxDistance / 3 + 1);
+        doFiltration(0.02, 2 * theMaxDistance / 3);
 
         for (size_t myDim = 0; myDim < 4; myDim++)
         {
@@ -127,6 +125,7 @@ public:
                 MatrixXd myNewBoundary(myCurrentBoundary.rows(), 0);
                 for (auto& myBd : myBirthDeath)
                 {
+                    // Checking for cycles that will die
                     if (myBd.theDeath == -1 && !isLinearlyIndependent(myCurrentHomology, myBd.theVector))
                     {
                         if (myNewBoundary.cols() == 0 || isLinearlyIndependent(myNewBoundary, myBd.theVector))
@@ -147,6 +146,7 @@ public:
                 myCurrentBoundary = myNewBoundary;
                 for (long i = 0; i < myCurrentHomology.cols(); i++)
                 {
+                    // Checking new cycles
                     if (myCurrentBoundary.size() == 0 || isLinearlyIndependent(myCurrentBoundary, myCurrentHomology.col(i)))
                     {
                         auto myBirthDeathSt = BirthDeathStruct{};
@@ -242,7 +242,6 @@ public:
 
     unordered_set<Simplex> getNDimensionalSimplex(unordered_set<Simplex>& aSimplices, unordered_set<Simplex>& aSimplicesNMinus1D, double aRadius)
     {
-        // Two dimensional
         auto mySimplicesNew = unordered_set<Simplex>{};
         for (const auto& mySimplex : aSimplicesNMinus1D)
         {
@@ -276,15 +275,16 @@ public:
 
     void writeCSV(const std::string& aFileName, const vector<BirthDeathStruct>& aVec) 
     {
-        std::ofstream file(aFileName);
-        if (file.is_open()) 
+        std::ofstream myFile(aFileName);
+        if (myFile.is_open()) 
         {
             for (const auto& aBirthDeath : aVec)
             {
-                file << aBirthDeath.theBirth << "," << aBirthDeath.theDeath;
-                file << "\n";
+                // In order to print nicely I need to save the index too, the only problem is that this won't be csv anymore
+                myFile << aBirthDeath.theBirth << "," << aBirthDeath.theDeath;
+                myFile << "\n";
             }
-            file.close();
+            myFile.close();
             std::cout << "Saved to " << aFileName << "\n";
         } else {
             std::cerr << "Could not open file for writing.\n";
