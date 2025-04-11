@@ -37,7 +37,7 @@ public:
         // sortRowsByColumn(theDistanceMatrixSorted, 2);
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
-        doFiltration(0.2, theMaxDistance / 2);
+        doFiltration(0.02, 2 * theMaxDistance / 3 + 1);
 
         for (size_t myDim = 0; myDim < 4; myDim++)
         {
@@ -81,8 +81,8 @@ public:
             std::cout << "Computing Triangles" << std::endl;
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
             std::cout << "Computing Tetrahedra" << std::endl;
-            // myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
-            // std::cout << "Computing Simplicial" << std::endl;
+            myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
+            std::cout << "Computing Simplicial" << std::endl;
             auto mySimplicialComplex = SimplicialComplex{mySimplices};
             // mySimplicialComplex.printComplex();
             for (size_t i = 1; i < 5; i++)
@@ -255,7 +255,7 @@ public:
                     for (const auto& myIndexStr : mySimplex.getOrientedSimplex())
                     {
                         int myIndex = std::stoi(myIndexStr);
-                        if ((theDistanceMatrix(myIndex - 1, i) > aRadius))
+                        if ((theDistanceMatrix(myIndex - 1, i) > aRadius / 2))
                         {
                             aConditionMet = false;
                             break;

@@ -96,14 +96,12 @@ int main() {
     cout << endl;
 
 
-    cout << "===== Neve Complex 1 =====" << endl;
-    NerveComplex myNeverComplex1("CDHWdata_1.csv");
-    cout << endl;
-
-
-    cout << "===== Neve Complex 2 =====" << endl;
-    NerveComplex myNeverComplex2("CDHWdata_2.csv");
-    cout << endl;
+    for (size_t i = 1; i < 6; i++)
+    {
+        cout << "===== Neve Complex " << i << " =====" << endl;
+        NerveComplex myNeverComplex1("CDHWdata_" + std::to_string(i) + ".csv");
+        cout << endl;
+    }
 
     return 0;
 }
