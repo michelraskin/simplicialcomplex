@@ -12,6 +12,7 @@ private:
     MatrixXd theMatrix;
     MatrixXd theDistanceMatrix;
     std::vector<std::pair<SimplicialComplex, double>> theSimplicialComplexes{};
+    std::string theName;
     // MatrixXd theDistanceMatrixSorted;
 
     double theMaxDistance;
@@ -29,18 +30,24 @@ private:
 public:
     NerveComplex(string aFile) 
     {
+        theName = aFile;
         theMatrix = readCsv(aFile);
         theDistanceMatrix = calculateDistances();
         // theDistanceMatrixSorted = theDistanceMatrix;
         // sortRowsByColumn(theDistanceMatrixSorted, 2);
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
-        doFiltration(0.1, theMaxDistance / 3 + 1);
+        doFiltration(0.2, theMaxDistance / 2);
 
-        for (size_t myDim = 0; myDim < 5; myDim++)
+        for (size_t myDim = 0; myDim < 4; myDim++)
         {
             std::cout << "Getting birth death of dimesion " << myDim << std::endl;
             getBirthAndDeathRate(myDim);
+        }
+        for (size_t myDim = 0; myDim < 4; myDim++)
+        {
+            std::cout << theBirhDeaths[myDim].size() << std::endl;
+            writeCSV(theName + "birthDeath" + std::to_string(myDim) + ".csv", theBirhDeaths[myDim]);
         }
     }
 
@@ -74,41 +81,16 @@ public:
             std::cout << "Computing Triangles" << std::endl;
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
             std::cout << "Computing Tetrahedra" << std::endl;
-            myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
-            std::cout << "Computing Simplicial" << std::endl;
+            // myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
+            // std::cout << "Computing Simplicial" << std::endl;
             auto mySimplicialComplex = SimplicialComplex{mySimplices};
             // mySimplicialComplex.printComplex();
             for (size_t i = 1; i < 5; i++)
             {
                 std::cout << "Printing Boundary of dimension " << i -1 << std::endl;
-                mySimplicialComplex.printHomology(i, i==2);
+                mySimplicialComplex.printHomology(i, false);
             }
             theSimplicialComplexes.push_back(std::pair<SimplicialComplex, double>(mySimplicialComplex, myRadius));
-            /*
-            TODO:
-            1. For each column in the homology function record when it's born (essentially when a cycle is born)
-            2. A cycle is born if it's not a linear combination of alive cycles at that step
-            3. Each step in order to do this check the dimensions (number of rows) need to be expanded to match
-            4. A cycle is dead when it's not a part of the current homologies
-
-            Implementation:
-            1. Vector that contains the born columns, the age where it was born and the age where it died
-            2. Each time something is born we push into the vector
-            3. When something dies we don't remove just keep and don't use to check against new born
-            4. Can check for linear dependence the same way I do for the kernel
-
-            FullPivLU<MatrixXd> mySolver(myAlive);
-            MatrixXd myLinearDependence = mySolver.solve(myHomology);
-            MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
-            myHomology = myHomology * myLinearDependenceKernel; // Can also just check one by one
-
-
-            FullPivLU<MatrixXd> mySolver(myHomology);
-            MatrixXd myLinearDependence = mySolver.solve(myAlive);
-            MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
-            myHomology = myAlive * myLinearDependenceKernel; // Will return all dead cycles 
-
-            */  
             mySimplicialComplex.printEulerCharacteristic();
         }
     }
@@ -118,15 +100,16 @@ public:
         vector<BirthDeathStruct> myBirthDeath{};
         MatrixXd myCurrentBoundary{};
         vector<Simplex> myCurrentIndex{};
+        bool myInitialized = false;
         for (const auto& [mySimplicial, myRadius] : theSimplicialComplexes)
         {
             auto myCurrentHomology = mySimplicial.getHomology(aDim);
-            if (myCurrentBoundary.size() == 0 || myCurrentIndex.size() == 0)
+            if ((myCurrentBoundary.size() == 0 || (getRank(myCurrentBoundary) == 0) || myCurrentIndex.size() == 0) && !myInitialized)
             {
-                myCurrentBoundary = myCurrentHomology;
                 myCurrentIndex = mySimplicial.getSimplicesPerDimOrdered(aDim+1);
-                if (myCurrentIndex.size() > 0)
+                if (myCurrentIndex.size() > 0 && (getRank(myCurrentHomology) > 0))
                 {
+                    myCurrentBoundary = myCurrentHomology;
                     for (long i = 0; i < myCurrentHomology.cols(); i++)
                     {
                         auto myBirthDeathSt = BirthDeathStruct{};
@@ -135,6 +118,7 @@ public:
                         myBirthDeathSt.theDeath = -1;
                         myBirthDeath.push_back(myBirthDeathSt);
                     }
+                    myInitialized = true;
                 }
             }
             else
@@ -163,13 +147,13 @@ public:
                 myCurrentBoundary = myNewBoundary;
                 for (long i = 0; i < myCurrentHomology.cols(); i++)
                 {
-                    if (isLinearlyIndependent(myCurrentBoundary, myCurrentHomology.col(i)))
+                    if (myCurrentBoundary.size() == 0 || isLinearlyIndependent(myCurrentBoundary, myCurrentHomology.col(i)))
                     {
                         auto myBirthDeathSt = BirthDeathStruct{};
                         myBirthDeathSt.theVector = myCurrentHomology.col(i);
                         myBirthDeathSt.theBirth = myRadius;
                         myBirthDeathSt.theDeath = -1;
-                        if (!isLinearlyIndependent(myNewBoundary, myCurrentHomology.col(i)))
+                        if (myNewBoundary.size() != 0 && !isLinearlyIndependent(myNewBoundary, myCurrentHomology.col(i)))
                         {
                             myBirthDeathSt.theDeath = myRadius;
                         }
@@ -185,12 +169,12 @@ public:
             }
         }
 
-        for (auto& myBd : myBirthDeath)
-        {
-            std::cout << "Vector born at: " << myBd.theBirth << std::endl;
-            std::cout << "Vector deat at: " << myBd.theDeath << std::endl;
-            std::cout << myBd.theVector << std::endl;
-        }
+        // for (auto& myBd : myBirthDeath)
+        // {
+        //     std::cout << "Vector born at: " << myBd.theBirth << std::endl;
+        //     std::cout << "Vector deat at: " << myBd.theDeath << std::endl;
+        //     std::cout << myBd.theVector << std::endl;
+        // }
 
         theBirhDeaths[aDim] = myBirthDeath;
     }
@@ -200,7 +184,18 @@ public:
         size_t j = 0;
         for (size_t i = 0; i < myNewIndex.size(); i++)
         {
-            if (myCurrentIndex[j] != myNewIndex[i])
+            if (j >= myCurrentIndex.size())
+            {
+                for (auto& myBd : aBirthDeath)
+                {
+                    auto vec = myBd.theVector;
+                    VectorXd newVec = vec;
+                    newVec.resize(vec.size() + 1);
+                    newVec(newVec.size()-1) = 0;
+                    myBd.theVector = newVec;
+                }
+            }
+            else if (myCurrentIndex[j] != myNewIndex[i])
             {
                 for (auto& myBd : aBirthDeath)
                 {
@@ -224,9 +219,10 @@ public:
             size_t i = 0;
             for (auto& myBd : aBirthDeath)
             {
-                if (myBd.theDeath != -1)
+                if (myBd.theDeath == -1)
                 {
                     aCurrentBoundary.col(i) = myBd.theVector;
+                    i++;
                 }
             }
             myCurrentIndex = myNewIndex;
@@ -276,5 +272,22 @@ public:
             }
         }
         return mySimplicesNew;
+    }
+
+    void writeCSV(const std::string& aFileName, const vector<BirthDeathStruct>& aVec) 
+    {
+        std::ofstream file(aFileName);
+        if (file.is_open()) 
+        {
+            for (const auto& aBirthDeath : aVec)
+            {
+                file << aBirthDeath.theBirth << "," << aBirthDeath.theDeath;
+                file << "\n";
+            }
+            file.close();
+            std::cout << "Saved to " << aFileName << "\n";
+        } else {
+            std::cerr << "Could not open file for writing.\n";
+        }
     }
 };

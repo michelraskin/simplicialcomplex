@@ -101,9 +101,9 @@ int main() {
     cout << endl;
 
 
-    // cout << "===== Neve Complex 2 =====" << endl;
-    // NerveComplex myNeverComplex2("CDHWdata_2.csv");
-    // cout << endl;
+    cout << "===== Neve Complex 2 =====" << endl;
+    NerveComplex myNeverComplex2("CDHWdata_2.csv");
+    cout << endl;
 
     return 0;
 }
