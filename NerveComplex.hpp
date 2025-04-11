@@ -36,7 +36,7 @@ public:
         theDistanceMatrix = calculateDistances();
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
-        doFiltration(0.01, theMaxDistance / 5);
+        doFiltration(0.025, theMaxDistance / 5);
 
         for (size_t myDim = 0; myDim < 4; myDim++)
         {
@@ -82,6 +82,11 @@ public:
             std::cout << "Computing Tetrahedra" << std::endl;
             myNewSimplex = getNDimensionalSimplex(mySimplices, myNewSimplex, myRadius);
             std::cout << "Computing Simplicial" << std::endl;
+            if (mySimplices.size() > 1200)
+            {
+                // Prevent explosion in computations
+                break;
+            }
             auto mySimplicialComplex = SimplicialComplex{mySimplices};
             // mySimplicialComplex.printComplex();
             for (size_t i = 1; i < 5; i++)
@@ -131,7 +136,13 @@ public:
                     {
                         if (myNewBoundary.cols() == 0 || isLinearlyIndependent(myNewBoundary, myBd.theVector))
                         {
-                            myNewBoundary.resize(myCurrentBoundary.rows(), myNewBoundary.cols() + 1);
+                            MatrixXd myNewBoundary2(myCurrentBoundary.rows(), myNewBoundary.cols() + 1);
+                            myNewBoundary2.setZero();
+                            for (long f = 0; f < myNewBoundary.cols(); f++)
+                            {
+                                myNewBoundary2.col(f) = myNewBoundary.col(f);
+                            }
+                            myNewBoundary = myNewBoundary2;
                             myNewBoundary.col(myNewBoundary.cols()-1) = myBd.theVector;
                         }
                         else
@@ -160,7 +171,13 @@ public:
                         }
                         else
                         {
-                            myNewBoundary.resize(myCurrentBoundary.rows(), myNewBoundary.cols() + 1);
+                            MatrixXd myNewBoundary2(myCurrentBoundary.rows(), myNewBoundary.cols() + 1);
+                            myNewBoundary2.setZero();
+                            for (long f = 0; f < myNewBoundary.cols(); f++)
+                            {
+                                myNewBoundary2.col(f) = myNewBoundary.col(f);
+                            }
+                            myNewBoundary = myNewBoundary2;
                             myNewBoundary.col(myNewBoundary.cols()-1) = myCurrentHomology.col(i);
                         }
                         myBirthDeath.push_back(myBirthDeathSt);
@@ -193,6 +210,8 @@ public:
                     auto vec = myBd.theVector;
                     VectorXd newVec = vec;
                     newVec.resize(vec.size() + 1);
+                    if (j!= 0)
+                        newVec.head(j) = vec.head(j);
                     newVec(newVec.size()-1) = 0;
                     myBd.theVector = newVec;
                 }

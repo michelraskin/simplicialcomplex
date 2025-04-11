@@ -318,10 +318,33 @@ public:
         myHomology.setZero(myKernel.rows(), myKernel.cols());
         if (getRank(myBoundaryDimPlus1) > 0)
         {
-            FullPivLU<MatrixXd> mySolver(myBoundaryDimPlus1);
-            MatrixXd myLinearDependence = mySolver.solve(myKernel);
-            MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
-            myHomology = myKernel * myLinearDependenceKernel;
+            // FullPivLU<MatrixXd> mySolver(myBoundaryDimPlus1);
+            // MatrixXd myLinearDependence = mySolver.solve(myKernel);
+            // MatrixXd myLinearDependenceKernel = kernel(myLinearDependence);
+            // myHomology = myKernel * myLinearDependenceKernel;
+            // std::vector<VectorXd> homology_basis;
+            long j = 0;
+            MatrixXd myCurrentBoundary(myKernel.rows(), 1);
+            long myCurrentRank = getRank(myBoundaryDimPlus1);
+            for (int i = 0; i < myKernel.cols(); ++i) 
+            {
+                myCurrentBoundary.col(myCurrentBoundary.cols() - 1) = myKernel.col(i);
+                MatrixXd augmented(myCurrentBoundary.rows(), myBoundaryDimPlus1.cols() + myCurrentBoundary.cols());
+                augmented << myBoundaryDimPlus1, myCurrentBoundary;
+                if (getRank(augmented) > myCurrentRank)
+                {
+                    myCurrentRank = getRank(augmented);
+                    MatrixXd myNewBoundary(myCurrentBoundary.rows(), myCurrentBoundary.cols() + 1);
+                    myNewBoundary.setZero();
+                    for (long f = 0; f < myCurrentBoundary.cols(); f++)
+                    {
+                        myNewBoundary.col(f) = myCurrentBoundary.col(f);
+                    }
+                    myCurrentBoundary = myNewBoundary;
+                    myHomology.col(j) = myKernel.col(i);
+                    j++;
+                }
+            }
         }
         else
         {
