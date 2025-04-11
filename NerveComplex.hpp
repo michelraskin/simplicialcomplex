@@ -11,6 +11,7 @@ class NerveComplex {
 private:
     MatrixXd theMatrix;
     MatrixXd theDistanceMatrix;
+    array<vector<Simplex>, 5> theIndex;
     std::vector<std::pair<SimplicialComplex, double>> theSimplicialComplexes{};
     std::string theName;
     // MatrixXd theDistanceMatrixSorted;
@@ -35,7 +36,7 @@ public:
         theDistanceMatrix = calculateDistances();
         theMaxDistance = theDistanceMatrix.col(2).maxCoeff();
         theMinDistance = theDistanceMatrix.col(2).minCoeff();
-        doFiltration(0.02, 2 * theMaxDistance / 3);
+        doFiltration(0.01, theMaxDistance / 5);
 
         for (size_t myDim = 0; myDim < 4; myDim++)
         {
@@ -45,7 +46,7 @@ public:
         for (size_t myDim = 0; myDim < 4; myDim++)
         {
             std::cout << theBirhDeaths[myDim].size() << std::endl;
-            writeCSV(theName + "birthDeath" + std::to_string(myDim) + ".csv", theBirhDeaths[myDim]);
+            writeCSV(theName + "birthDeath" + std::to_string(myDim) + ".csv", theBirhDeaths[myDim], myDim);
         }
     }
 
@@ -177,6 +178,7 @@ public:
         // }
 
         theBirhDeaths[aDim] = myBirthDeath;
+        theIndex[aDim] = myCurrentIndex;
     }
 
     void resizeBirthDeath(vector<BirthDeathStruct>& aBirthDeath, MatrixXd& aCurrentBoundary, vector<Simplex>& myCurrentIndex, const auto& myNewIndex)
@@ -254,7 +256,7 @@ public:
                     for (const auto& myIndexStr : mySimplex.getOrientedSimplex())
                     {
                         int myIndex = std::stoi(myIndexStr);
-                        if ((theDistanceMatrix(myIndex - 1, i) > aRadius / 2))
+                        if ((theDistanceMatrix(myIndex - 1, i) > 2 * aRadius))
                         {
                             aConditionMet = false;
                             break;
@@ -273,7 +275,7 @@ public:
         return mySimplicesNew;
     }
 
-    void writeCSV(const std::string& aFileName, const vector<BirthDeathStruct>& aVec) 
+    void writeCSV(const std::string& aFileName, const vector<BirthDeathStruct>& aVec, size_t aDim) 
     {
         std::ofstream myFile(aFileName);
         if (myFile.is_open()) 
@@ -281,7 +283,19 @@ public:
             for (const auto& aBirthDeath : aVec)
             {
                 // In order to print nicely I need to save the index too, the only problem is that this won't be csv anymore
-                myFile << aBirthDeath.theBirth << "," << aBirthDeath.theDeath;
+                myFile << aBirthDeath.theBirth << "," << aBirthDeath.theDeath << "," ;
+                for (long i = 0; i < aBirthDeath.theVector.rows(); i++)
+                {
+                    if (std::round(aBirthDeath.theVector(i)) == 1)
+                    {
+                        myFile << " + " << std::to_string((int)std::round(aBirthDeath.theVector(i))) << " * " << theIndex[aDim][i];
+                    }
+
+                    if (std::round(aBirthDeath.theVector(i)) == -1)
+                    {
+                        myFile << std::to_string((int)std::round(aBirthDeath.theVector(i))) << " * " << theIndex[aDim][i];
+                    }
+                }
                 myFile << "\n";
             }
             myFile.close();

@@ -106,7 +106,7 @@ public:
 std::ostream& operator<<(std::ostream& out, const Simplex& aSimplex) {
     out << "{";
     for (const auto& myValue : aSimplex) {
-        out << setw(8) << myValue << ", ";
+        out << setw(8) << myValue << " ";
     }
     out << "}";
     return out;

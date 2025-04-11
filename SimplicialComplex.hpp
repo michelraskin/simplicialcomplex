@@ -315,7 +315,7 @@ public:
         MatrixXd myKernel = kernel(theBoundaries[aDim]);
         auto myHomologyRows = getRank(myKernel) - getRank(myBoundaryDimPlus1);
         MatrixXd myHomology(myKernel.rows(), myKernel.cols());
-        myHomology.setZero();
+        myHomology.setZero(myKernel.rows(), myKernel.cols());
         if (getRank(myBoundaryDimPlus1) > 0)
         {
             FullPivLU<MatrixXd> mySolver(myBoundaryDimPlus1);
