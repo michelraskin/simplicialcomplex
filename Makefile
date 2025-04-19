@@ -1,10 +1,10 @@
 CXX = g++
 
-CXXFLAGS = -I /opt/homebrew/include/eigen3 -Wall -Wextra -std=c++20 -O3 -flto -march=native -funroll-loops -ffast-math 
+CXXFLAGS = -I /opt/homebrew/include/eigen3 -I /opt/homebrew/include/ -I ./gudhi-devel/src/Persistent_cohomology/include -I ./gudhi-devel/src/Simplex_tree/include -I ./gudhi-devel/src/common/include/ -I gudhi-devel/src/Rips_complex/include/ -Wall -Wextra -std=c++20 -O3 -flto -march=native -funroll-loops -ffast-math 
 
 TARGET = simplicial_complex
 
-SRC = SimplexMain.cpp
+SRC = SimplexMain.cpp GudhiTest.cpp
 DEPS = Simplex.hpp SimplicialComplex.hpp NerveComplex.hpp SimplexUtils.hpp
 OBJ = $(SRC:.cpp=.o)
 
