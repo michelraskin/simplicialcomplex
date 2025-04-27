@@ -7,3 +7,9 @@ my_program.dSYM/*
 .vscode/
 *.csv
 simplicial_complex
+.DS_Store 
+.zshrc.user 
+audio-emotions/ 
+debug.log 
+gudhi-devel/ 
+savefiles/ 
