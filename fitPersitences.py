@@ -88,11 +88,9 @@ folder = './savefiles'
 maxElements = 3000
 
 def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
-    # Dictionary to store the loaded data
     pattern = re.compile(pattern + r'_(\d+)_(\d+)\.npy')
     heatmaps_dict = {}
 
-    # Scan the folder for matching files
     for filename in os.listdir(folder):
         match = pattern.match(filename)
         if match:
@@ -105,7 +103,6 @@ def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
             if i not in heatmaps_dict:
                 heatmaps_dict[i] = []
             
-            # Ensure list is long enough to hold j-th index
             while len(heatmaps_dict[i]) <= j:
                 heatmaps_dict[i].append(None)
             
