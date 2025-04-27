@@ -4,7 +4,7 @@ CXXFLAGS = -I /opt/homebrew/include/eigen3 -I /opt/homebrew/include/ -I ./gudhi-
 
 TARGET = simplicial_complex
 
-SRC = SimplexMain.cpp GudhiTest.cpp
+SRC = SimplexMain.cpp
 DEPS = Simplex.hpp SimplicialComplex.hpp NerveComplex.hpp SimplexUtils.hpp
 OBJ = $(SRC:.cpp=.o)
 
