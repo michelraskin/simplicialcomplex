@@ -109,10 +109,10 @@ def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
             heatmaps_dict[i][j] = data
     return [heatmaps_dict[i] for i in sorted(heatmaps_dict.keys())]
 
-mfccheatlowres = findFilesFromPattern('mfccLowResHeat')
-wassersteinlowres = findFilesFromPattern('wassersteinLowResHeat')
-timeHeatlowres = findFilesFromPattern('metricTimeLowResHeat')
-euclidHeatlowres = findFilesFromPattern('euclidLowResHeat')
+mfccheatlowres = findFilesFromPattern('dtwMetricHeat')
+wassersteinlowres = findFilesFromPattern('wassersteinHeat')
+timeHeatlowres = findFilesFromPattern('timeMetricHeat')
+euclidHeatlowres = findFilesFromPattern('euclideanHeat')
 
 def load_spectrograms(prefix, path='./savefiles'):
     pattern = os.path.join(path, f"{prefix}_*.npy")
