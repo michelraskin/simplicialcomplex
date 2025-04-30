@@ -175,4 +175,26 @@ model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accur
                   AUC(multi_label=True)])
 
 
-history = model.fit(X_train, y_train, epochs=100, batch_size=512, validation_data=(X_test, y_test))
+history = model.fit(X_train, y_train, epochs=30, batch_size=512, validation_data=(X_test, y_test))
+
+from sklearn.metrics import confusion_matrix, classification_report
+class_labels = (list(set({'angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad'})))
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+y_test_classes = np.argmax(y_test, axis=1)
+report = classification_report(y_test_classes, y_pred_classes, target_names=class_labels)
+print(report)
+
+# confusion matrix
+from sklearn.metrics import confusion_matrix
+
+import seaborn as sns
+
+cm = confusion_matrix(y_test_classes, y_pred_classes)
+cm_df = pd.DataFrame(cm, index=class_labels, columns=class_labels)
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_df, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
