@@ -109,10 +109,10 @@ def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
             heatmaps_dict[i][j] = data
     return [heatmaps_dict[i] for i in sorted(heatmaps_dict.keys())]
 
-mfccheatlowres = findFilesFromPattern('dtwMetricHeat')
-wassersteinlowres = findFilesFromPattern('wassersteinHeat')
-timeHeatlowres = findFilesFromPattern('timeMetricHeat')
-euclidHeatlowres = findFilesFromPattern('euclideanHeat')
+mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
+melwasserstein = findFilesFromPattern('wassersteinHeat')
+meltimeeuclid = findFilesFromPattern('timeMetricHeat')
+meleuclid = findFilesFromPattern('euclideanHeat')
 
 def load_spectrograms(prefix, path='./savefiles'):
     pattern = os.path.join(path, f"{prefix}_*.npy")
@@ -128,21 +128,21 @@ myRaw = [
     load_spectrograms("mel_spectrogram_dbs_surprised"),
     load_spectrograms("mel_spectrogram_dbs_sad")
 ]
-print(len(mfccheatlowres))
-print(len(sum([x[1::2] for x in mfccheatlowres], [])))
+print(len(mfccwasserstein))
+print(len(sum([x[1::2] for x in mfccwasserstein], [])))
 myData = np.array([
-                    sum([x[::2] for x in euclidHeatlowres], []),
-                    sum([x[1::2] for x in euclidHeatlowres], []),
-                    sum([x[::2] for x in timeHeatlowres], []),
-                    sum([x[1::2] for x in timeHeatlowres], []),
-                    sum([x[::2] for x in mfccheatlowres], []),
-                    sum([x[1::2] for x in mfccheatlowres], []),
-                    sum([x[::2] for x in wassersteinlowres], []),
-                    sum([x[1::2] for x in wassersteinlowres], [])
+                    sum([x[::2] for x in meleuclid], []),
+                    sum([x[1::2] for x in meleuclid], []),
+                    sum([x[::2] for x in meltimeeuclid], []),
+                    sum([x[1::2] for x in meltimeeuclid], []),
+                    sum([x[::2] for x in mfccwasserstein], []),
+                    sum([x[1::2] for x in mfccwasserstein], []),
+                    sum([x[::2] for x in melwasserstein], []),
+                    sum([x[1::2] for x in melwasserstein], [])
                     ])
 myData = myData.astype('float32')
 myData = np.transpose(myData, (1, 2, 3, 0))
-myY = np.array(sum([[i for x in range(len(wassersteinlowres[i]) // 2)] for i in range(7)], []))
+myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
 
 myY = to_categorical(myY, num_classes=7)
 
@@ -175,7 +175,7 @@ model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accur
                   AUC(multi_label=True)])
 
 
-history = model.fit(X_train, y_train, epochs=30, batch_size=512, validation_data=(X_test, y_test))
+history = model.fit(X_train, y_train, epochs=40, batch_size=512, validation_data=(X_test, y_test))
 
 from sklearn.metrics import confusion_matrix, classification_report
 class_labels = (list(set({'angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad'})))
