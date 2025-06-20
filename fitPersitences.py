@@ -7,6 +7,7 @@ import kagglehub
 import statsmodels.api as sm
 
 # import tensorflow_addons as tfa
+import cv2
 from keras import backend as K
 
 from sklearn.preprocessing import StandardScaler
@@ -17,7 +18,7 @@ from sklearn.model_selection import train_test_split
 import keras
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers import Dense, Input, BatchNormalization, Dropout, Conv2D, MaxPooling2D, Flatten, AveragePooling2D, Activation
+from keras.layers import Dense, Input, BatchNormalization, Dropout, Conv2D, MaxPooling2D, Flatten, AveragePooling2D, Activation, Concatenate
 from keras.optimizers import SGD
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import roc_auc_score, accuracy_score
@@ -113,6 +114,11 @@ mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
 melwasserstein = findFilesFromPattern('wassersteinHeat')
 meltimeeuclid = findFilesFromPattern('timeMetricHeat')
 meleuclid = findFilesFromPattern('euclideanHeat')
+# print(np.array(meltimeeuclid[0]).shape)
+# mfccwasserstein = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in mfccwasserstein]
+# melwasserstein = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in melwasserstein]
+# meltimeeuclid = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in meltimeeuclid]
+# meleuclid = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in meleuclid]
 
 def load_spectrograms(prefix, path='./savefiles'):
     pattern = os.path.join(path, f"{prefix}_*.npy")
@@ -130,7 +136,32 @@ myRaw = [
 ]
 print(len(mfccwasserstein))
 print(len(sum([x[1::2] for x in mfccwasserstein], [])))
+
+
 myData = np.array([
+                    sum([x for x in myRaw], [])
+                    # sum([x[::2] for x in meleuclid], []),
+                    # sum([x[1::2] for x in meleuclid], []),
+                    # sum([x[::2] for x in meltimeeuclid], []),
+                    # sum([x[1::2] for x in meltimeeuclid], []),
+                    # sum([x[::2] for x in mfccwasserstein], []),
+                    # sum([x[1::2] for x in mfccwasserstein], []),
+                    # sum([x[::2] for x in melwasserstein], []),
+                    # sum([x[1::2] for x in melwasserstein], [])
+                    ])
+print('finish data')
+myData = myData.astype('float32')
+myData = np.transpose(myData, (1, 2, 3, 0))
+myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
+
+myY = to_categorical(myY, num_classes=7)
+
+# X_train, X_test, y_train, y_test = train_test_split(
+#     myData, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
+# )
+
+myData2 = np.array([
+                    # sum([x for x in myRaw], [])
                     sum([x[::2] for x in meleuclid], []),
                     sum([x[1::2] for x in meleuclid], []),
                     sum([x[::2] for x in meltimeeuclid], []),
@@ -140,50 +171,127 @@ myData = np.array([
                     sum([x[::2] for x in melwasserstein], []),
                     sum([x[1::2] for x in melwasserstein], [])
                     ])
-myData = myData.astype('float32')
-myData = np.transpose(myData, (1, 2, 3, 0))
-myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
+print('finish data')
+myData2 = myData2.astype('float32')
+myData2 = np.transpose(myData2, (1, 2, 3, 0))
+# myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
 
-myY = to_categorical(myY, num_classes=7)
+# myY = to_categorical(myY, num_classes=7)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    myData, myY, test_size=0.2, shuffle=True, stratify=myY
+X_train, X_test, X_train2, X_test2, y_train, y_test = train_test_split(
+    myData, myData2, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
 )
 
-model = keras.Sequential([
-    Input(shape=(32, 32, 8)),
-    Conv2D(64, kernel_size=(3,3), activation='relu'),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(64, kernel_size=(3,3), activation='relu'),
-    Dropout(0.5),
-    Conv2D(64, kernel_size=(3,3), activation='relu'),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(64, kernel_size=(3,3), activation='relu'),
-    Dropout(0.5),
-    Flatten(),
-    Dense(64, activation='relu'),
-    BatchNormalization(),
-    Activation('relu'),
-    Dense(64, activation='relu'),
-    Dropout(0.5),
-    Dense(7, activation='softmax')
-])
+# X_train, X_test, y_train, y_test = train_test_split(
+#     myData, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
+# )
+
+
+# X_train, X_test, y_train, y_test = train_test_split(
+#     myData2, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
+# )
+
+print('start model')
+
+checkpoint = ModelCheckpoint(
+    'best_model.h5',             
+    monitor='val_auc',
+    save_best_only=True,         
+    mode='max',                  
+    verbose=1
+)
+
+input_128 = Input(shape=(128, 128, 1))
+input_32 = Input(shape=(32, 32, 8))
+
+x1 = Conv2D(32, (3, 3), activation='relu')(input_128)
+x2 = Conv2D(32, (3, 3), activation='relu')(input_32)
+
+x1 = BatchNormalization()(x1)
+x2 = BatchNormalization()(x2)
+
+x1 = Activation('relu')(x1)
+x2 = Activation('relu')(x2)
+
+x1 = MaxPooling2D()(x1)
+x2 = MaxPooling2D()(x2)
+
+x1 = Conv2D(32, (3, 3), activation='relu')(x1)
+x2 = Conv2D(32, (3, 3), activation='relu')(x2)
+
+x1 = MaxPooling2D()(x1)
+x2 = MaxPooling2D()(x2)
+
+x1 = Flatten()(x1)
+x2 = Flatten()(x2)
+
+
+
+
+merged = Concatenate()([x1, x2])
+merged = Dense(64, activation='relu')(merged)
+merged = Dropout(0.2)(merged)
+output = Dense(7, activation='softmax')(merged)
+
+
+model = Model(inputs=[input_128, input_32], outputs=output)
+
+
+# model = keras.Sequential([
+#     Input(shape=(128, 128, 1)),
+#     Conv2D(32, kernel_size=(3,3), activation='relu'),
+#     BatchNormalization(),
+#     Activation('relu'),
+#     MaxPooling2D(),
+#     Conv2D(32, kernel_size=(3,3), activation='relu'),
+#     MaxPooling2D(),
+#     Flatten(),
+#     Dense(64, activation='relu'),
+#     Dropout(0.2),
+#     Dense(7, activation='softmax')
+# ])
+
+# model = keras.Sequential([
+#     Input(shape=(32, 32, 8)),
+#     Conv2D(32, kernel_size=(3,3), activation='relu'),
+#     BatchNormalization(),
+#     Activation('relu'),
+#     MaxPooling2D(),
+#     Conv2D(32, kernel_size=(3,3), activation='relu'),
+#     MaxPooling2D(),
+#     Flatten(),
+#     Dense(64, activation='relu'),
+#     Dropout(0.2),
+#     Dense(7, activation='softmax')
+# ])
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy',
                   TopKCategoricalAccuracy(k=3, name='top_3_accuracy'), 
                   AUC(multi_label=True)])
 
 
-history = model.fit(X_train, y_train, epochs=40, batch_size=512, validation_data=(X_test, y_test))
+model.summary()
+
+history = model.fit([X_train, X_train2], y_train, epochs=60, batch_size=256, validation_split=0.2, callbacks=[checkpoint])
+
+# history = model.fit(X_train, y_train, epochs=100, batch_size=256, validation_split=0.2, callbacks=[checkpoint])
+
+
+model = load_model('best_model.h5')
 
 from sklearn.metrics import confusion_matrix, classification_report
-class_labels = (list(set({'angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad'})))
-y_pred = model.predict(X_test)
+class_labels = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad']
+y_pred = model.predict([X_test, X_test2])
+# y_pred = model.predict(X_test)
 y_pred_classes = np.argmax(y_pred, axis=1)
 y_test_classes = np.argmax(y_test, axis=1)
 report = classification_report(y_test_classes, y_pred_classes, target_names=class_labels)
 print(report)
+# results = model.evaluate(X_test, y_test, verbose=1)
+
+results = model.evaluate([X_test, X_test2], y_test, verbose=1)
+
+for name, value in zip(model.metrics_names, results):
+    print(f"{name}: {value:.4f}")
 
 # confusion matrix
 from sklearn.metrics import confusion_matrix
