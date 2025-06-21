@@ -26,6 +26,8 @@ from keras.datasets import mnist
 from tensorflow.keras.metrics import AUC
 from tensorflow.keras.metrics import SparseCategoricalAccuracy, TopKCategoricalAccuracy
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.utils import plot_model
+
 
 import logging, os
 
@@ -114,11 +116,6 @@ mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
 melwasserstein = findFilesFromPattern('wassersteinHeat')
 meltimeeuclid = findFilesFromPattern('timeMetricHeat')
 meleuclid = findFilesFromPattern('euclideanHeat')
-# print(np.array(meltimeeuclid[0]).shape)
-# mfccwasserstein = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in mfccwasserstein]
-# melwasserstein = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in melwasserstein]
-# meltimeeuclid = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in meltimeeuclid]
-# meleuclid = [[cv2.resize(np.array(im), (128, 128)) for im in x] for x in meleuclid]
 
 def load_spectrograms(prefix, path='./savefiles'):
     pattern = os.path.join(path, f"{prefix}_*.npy")
@@ -140,14 +137,6 @@ print(len(sum([x[1::2] for x in mfccwasserstein], [])))
 
 myData = np.array([
                     sum([x for x in myRaw], [])
-                    # sum([x[::2] for x in meleuclid], []),
-                    # sum([x[1::2] for x in meleuclid], []),
-                    # sum([x[::2] for x in meltimeeuclid], []),
-                    # sum([x[1::2] for x in meltimeeuclid], []),
-                    # sum([x[::2] for x in mfccwasserstein], []),
-                    # sum([x[1::2] for x in mfccwasserstein], []),
-                    # sum([x[::2] for x in melwasserstein], []),
-                    # sum([x[1::2] for x in melwasserstein], [])
                     ])
 print('finish data')
 myData = myData.astype('float32')
@@ -156,12 +145,7 @@ myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in ran
 
 myY = to_categorical(myY, num_classes=7)
 
-# X_train, X_test, y_train, y_test = train_test_split(
-#     myData, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
-# )
-
 myData2 = np.array([
-                    # sum([x for x in myRaw], [])
                     sum([x[::2] for x in meleuclid], []),
                     sum([x[1::2] for x in meleuclid], []),
                     sum([x[::2] for x in meltimeeuclid], []),
@@ -174,22 +158,10 @@ myData2 = np.array([
 print('finish data')
 myData2 = myData2.astype('float32')
 myData2 = np.transpose(myData2, (1, 2, 3, 0))
-# myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
-
-# myY = to_categorical(myY, num_classes=7)
 
 X_train, X_test, X_train2, X_test2, y_train, y_test = train_test_split(
     myData, myData2, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
 )
-
-# X_train, X_test, y_train, y_test = train_test_split(
-#     myData, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
-# )
-
-
-# X_train, X_test, y_train, y_test = train_test_split(
-#     myData2, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
-# )
 
 print('start model')
 
@@ -226,8 +198,6 @@ x1 = Flatten()(x1)
 x2 = Flatten()(x2)
 
 
-
-
 merged = Concatenate()([x1, x2])
 merged = Dense(64, activation='relu')(merged)
 merged = Dropout(0.2)(merged)
@@ -237,33 +207,6 @@ output = Dense(7, activation='softmax')(merged)
 model = Model(inputs=[input_128, input_32], outputs=output)
 
 
-# model = keras.Sequential([
-#     Input(shape=(128, 128, 1)),
-#     Conv2D(32, kernel_size=(3,3), activation='relu'),
-#     BatchNormalization(),
-#     Activation('relu'),
-#     MaxPooling2D(),
-#     Conv2D(32, kernel_size=(3,3), activation='relu'),
-#     MaxPooling2D(),
-#     Flatten(),
-#     Dense(64, activation='relu'),
-#     Dropout(0.2),
-#     Dense(7, activation='softmax')
-# ])
-
-# model = keras.Sequential([
-#     Input(shape=(32, 32, 8)),
-#     Conv2D(32, kernel_size=(3,3), activation='relu'),
-#     BatchNormalization(),
-#     Activation('relu'),
-#     MaxPooling2D(),
-#     Conv2D(32, kernel_size=(3,3), activation='relu'),
-#     MaxPooling2D(),
-#     Flatten(),
-#     Dense(64, activation='relu'),
-#     Dropout(0.2),
-#     Dense(7, activation='softmax')
-# ])
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy',
                   TopKCategoricalAccuracy(k=3, name='top_3_accuracy'), 
                   AUC(multi_label=True)])
@@ -271,22 +214,19 @@ model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accur
 
 model.summary()
 
+plot_model(model, to_file='model_architecture_double.png', show_shapes=True, show_layer_names=True)
+
 history = model.fit([X_train, X_train2], y_train, epochs=60, batch_size=256, validation_split=0.2, callbacks=[checkpoint])
-
-# history = model.fit(X_train, y_train, epochs=100, batch_size=256, validation_split=0.2, callbacks=[checkpoint])
-
 
 model = load_model('best_model.h5')
 
 from sklearn.metrics import confusion_matrix, classification_report
 class_labels = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad']
 y_pred = model.predict([X_test, X_test2])
-# y_pred = model.predict(X_test)
 y_pred_classes = np.argmax(y_pred, axis=1)
 y_test_classes = np.argmax(y_test, axis=1)
 report = classification_report(y_test_classes, y_pred_classes, target_names=class_labels)
 print(report)
-# results = model.evaluate(X_test, y_test, verbose=1)
 
 results = model.evaluate([X_test, X_test2], y_test, verbose=1)
 
