@@ -91,13 +91,16 @@ folder = './savefiles'
 maxElements = 3000
 
 def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
-    pattern = re.compile(pattern + r'_(\d+)_(\d+)\.npy')
+    pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
+    heatmaps_dict = {}
+
     heatmaps_dict = {}
 
     for filename in os.listdir(folder):
         match = pattern.match(filename)
         if match:
-            i, j = map(int, match.groups())
+            dataset, actor, emotion, i, j = map(str, match.groups())
+            i, j = int(i), int(j)
             filepath = os.path.join(folder, filename)
             data = np.load(filepath)
             if j >= maxvalue * maxdim:
@@ -109,7 +112,7 @@ def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
             while len(heatmaps_dict[i]) <= j:
                 heatmaps_dict[i].append(None)
             
-            heatmaps_dict[i][j] = data
+            heatmaps_dict[i][j] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion}
     return [heatmaps_dict[i] for i in sorted(heatmaps_dict.keys())]
 
 mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
@@ -123,16 +126,13 @@ def load_spectrograms(prefix, path='./savefiles'):
     return [np.load(file) for i, file in enumerate(file_list) if i < maxElements]
 
 myRaw = [
-    load_spectrograms("mel_spectrogram_dbs_angry"),
-    load_spectrograms("mel_spectrogram_dbs_disgusted"),
-    load_spectrograms("mel_spectrogram_dbs_fearful"),
-    load_spectrograms("mel_spectrogram_dbs_happy"),
-    load_spectrograms("mel_spectrogram_dbs_neutral"),
-    load_spectrograms("mel_spectrogram_dbs_surprised"),
-    load_spectrograms("mel_spectrogram_dbs_sad")
+    load_spectrograms("savee"),
+    load_spectrograms("tess"),
+    load_spectrograms("radvess"),
+    load_spectrograms("cremad"),
 ]
 print(len(mfccwasserstein))
-print(len(sum([x[1::2] for x in mfccwasserstein], [])))
+print(len([j['data'] for j in sum([x[1::2] for x in mfccwasserstein], [])]))
 
 
 myData = np.array([
@@ -141,19 +141,22 @@ myData = np.array([
 print('finish data')
 myData = myData.astype('float32')
 myData = np.transpose(myData, (1, 2, 3, 0))
-myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
+myEmotionMap = {
+    'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
+}
+myY = np.array([myEmotionMap[j['emotion'].split('_')[-1]] - 1 for j in sum([x[::2] for x in meleuclid], [])])
 
 myY = to_categorical(myY, num_classes=7)
 
 myData2 = np.array([
-                    sum([x[::2] for x in meleuclid], []),
-                    sum([x[1::2] for x in meleuclid], []),
-                    sum([x[::2] for x in meltimeeuclid], []),
-                    sum([x[1::2] for x in meltimeeuclid], []),
-                    sum([x[::2] for x in mfccwasserstein], []),
-                    sum([x[1::2] for x in mfccwasserstein], []),
-                    sum([x[::2] for x in melwasserstein], []),
-                    sum([x[1::2] for x in melwasserstein], [])
+                    sum([x[::2]['data'] for x in meleuclid], []),
+                    sum([x[1::2]['data'] for x in meleuclid], []),
+                    sum([x[::2]['data'] for x in meltimeeuclid], []),
+                    sum([x[1::2]['data'] for x in meltimeeuclid], []),
+                    sum([x[::2]['data'] for x in mfccwasserstein], []),
+                    sum([x[1::2]['data'] for x in mfccwasserstein], []),
+                    sum([x[::2]['data'] for x in melwasserstein], []),
+                    sum([x[1::2]['data'] for x in melwasserstein], [])
                     ])
 print('finish data')
 myData2 = myData2.astype('float32')
