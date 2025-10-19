@@ -145,6 +145,8 @@ myEmotionMap = {
     'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
 }
 myY = np.array([myEmotionMap[j['emotion'].split('_')[-1]] - 1 for j in sum([x[::2] for x in meleuclid], [])])
+myActors = np.array([j['actor']  for j in sum([x[::2] for x in meleuclid], [])])
+print(np.unique(myActors))
 
 print(np.unique(myY))
 
