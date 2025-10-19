@@ -88,7 +88,7 @@ from tensorflow.keras.metrics import Metric
 
 folder = './savefiles'
 
-maxElements = 3000
+maxElements = 8000
 
 def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
     pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
@@ -146,17 +146,19 @@ myEmotionMap = {
 }
 myY = np.array([myEmotionMap[j['emotion'].split('_')[-1]] - 1 for j in sum([x[::2] for x in meleuclid], [])])
 
-myY = to_categorical(myY, num_classes=7)
+print(np.unique(myY))
+
+myY = to_categorical(myY, num_classes=8)
 
 myData2 = np.array([
-                    sum([x[::2]['data'] for x in meleuclid], []),
-                    sum([x[1::2]['data'] for x in meleuclid], []),
-                    sum([x[::2]['data'] for x in meltimeeuclid], []),
-                    sum([x[1::2]['data'] for x in meltimeeuclid], []),
-                    sum([x[::2]['data'] for x in mfccwasserstein], []),
-                    sum([x[1::2]['data'] for x in mfccwasserstein], []),
-                    sum([x[::2]['data'] for x in melwasserstein], []),
-                    sum([x[1::2]['data'] for x in melwasserstein], [])
+                    [j['data'] for j in sum([x[::2] for x in meleuclid], [])],
+                    [j['data'] for j in  sum([x[1::2] for x in meleuclid], [])],
+                    [j['data'] for j in  sum([x[::2] for x in meltimeeuclid], [])],
+                    [j['data'] for j in  sum([x[1::2] for x in meltimeeuclid], [])],
+                    [j['data'] for j in  sum([x[::2] for x in mfccwasserstein], [])],
+                    [j['data'] for j in  sum([x[1::2] for x in mfccwasserstein], [])],
+                    [j['data'] for j in  sum([x[::2] for x in melwasserstein], [])],
+                    [j['data'] for j in  sum([x[1::2] for x in melwasserstein], [])]
                     ])
 print('finish data')
 myData2 = myData2.astype('float32')
@@ -180,7 +182,7 @@ import numpy as np
 
 # --- Model definition ---
 class DualInputCNN(nn.Module):
-    def __init__(self, num_classes=7):
+    def __init__(self, num_classes=8):
         super(DualInputCNN, self).__init__()
         
         # Branch 1: for 128x128x1
@@ -237,7 +239,7 @@ class DualInputCNN(nn.Module):
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-model = DualInputCNN(num_classes=7).to(device)
+model = DualInputCNN(num_classes=8).to(device)
 
 # --- Loss and optimizer ---
 criterion = nn.CrossEntropyLoss()
@@ -275,8 +277,8 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 num_epochs = 100
 
 best_val_auc = 0.0
-auroc = MulticlassAUROC(num_classes=7).to(device)
-top3acc = MulticlassAccuracy(num_classes=7, top_k=3).to(device)
+auroc = MulticlassAUROC(num_classes=8).to(device)
+top3acc = MulticlassAccuracy(num_classes=8, top_k=3).to(device)
 
 # ================================================================
 # Training Loop with Checkpoint
