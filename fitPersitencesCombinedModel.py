@@ -88,79 +88,82 @@ from tensorflow.keras.metrics import Metric
 
 folder = './savefiles'
 
-maxElements = 3000
-
-def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
-    pattern = re.compile(pattern + r'_(\d+)_(\d+)\.npy')
+def findFilesFromPattern(pattern):
+    pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
     heatmaps_dict = {}
 
     for filename in os.listdir(folder):
         match = pattern.match(filename)
         if match:
-            i, j = map(int, match.groups())
+            dataset, actor, emotion, i, j = map(str, match.groups())
+            i, j = int(i), int(j)
             filepath = os.path.join(folder, filename)
             data = np.load(filepath)
-            if j >= maxvalue * maxdim:
-                continue
             
-            if i not in heatmaps_dict:
-                heatmaps_dict[i] = []
-            
-            while len(heatmaps_dict[i]) <= j:
-                heatmaps_dict[i].append(None)
-            
-            heatmaps_dict[i][j] = data
-    return [heatmaps_dict[i] for i in sorted(heatmaps_dict.keys())]
+            heatmaps_dict[filename] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+
+    return heatmaps_dict
 
 mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
 melwasserstein = findFilesFromPattern('wassersteinHeat')
 meltimeeuclid = findFilesFromPattern('timeMetricHeat')
 meleuclid = findFilesFromPattern('euclideanHeat')
 
-def load_spectrograms(prefix, path='./savefiles'):
-    pattern = os.path.join(path, f"{prefix}_*.npy")
-    file_list = sorted(glob(pattern)) 
-    return [np.load(file) for i, file in enumerate(file_list) if i < maxElements]
+def load_spectrograms(prefixes, path='./savefiles'):
+    patterns = []
+    for prefix in prefixes:
+        patterns.append(os.path.join(path, f"{prefix}_*.npy"))
+    my_globs = glob(patterns[0])
+    for pattern in patterns[1:]:
+        my_globs = my_globs + glob(pattern)
+    file_list = sorted(my_globs) 
+    return [np.load(file) for i, file in enumerate(file_list)]
 
-myRaw = [
-    load_spectrograms("mel_spectrogram_dbs_angry"),
-    load_spectrograms("mel_spectrogram_dbs_disgusted"),
-    load_spectrograms("mel_spectrogram_dbs_fearful"),
-    load_spectrograms("mel_spectrogram_dbs_happy"),
-    load_spectrograms("mel_spectrogram_dbs_neutral"),
-    load_spectrograms("mel_spectrogram_dbs_surprised"),
-    load_spectrograms("mel_spectrogram_dbs_sad")
-]
+myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
 print(len(mfccwasserstein))
-print(len(sum([x[1::2] for x in mfccwasserstein], [])))
+print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
+print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
+print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
 
+print(len(myRaw))
 
-myData = np.array([
-                    sum([x for x in myRaw], [])
-                    ])
+myData = np.array([myRaw])
 print('finish data')
 myData = myData.astype('float32')
 myData = np.transpose(myData, (1, 2, 3, 0))
-myY = np.array(sum([[i for x in range(len(melwasserstein[i]) // 2)] for i in range(7)], []))
+myEmotionMap = {
+    'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
+}
+myY = np.array(
+    [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+)
+myActors = np.array(
+    [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+)
+print(np.unique(myActors))
 
-myY = to_categorical(myY, num_classes=7)
+print(np.unique(myY))
+
+myY = to_categorical(myY, num_classes=8)
 
 myData2 = np.array([
-                    sum([x[::2] for x in meleuclid], []),
-                    sum([x[1::2] for x in meleuclid], []),
-                    sum([x[::2] for x in meltimeeuclid], []),
-                    sum([x[1::2] for x in meltimeeuclid], []),
-                    sum([x[::2] for x in mfccwasserstein], []),
-                    sum([x[1::2] for x in mfccwasserstein], []),
-                    sum([x[::2] for x in melwasserstein], []),
-                    sum([x[1::2] for x in melwasserstein], [])
+                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0],
+                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1],
+                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0],
+                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1],
+                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0],
+                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1],
+                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0],
+                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1]
                     ])
 print('finish data')
 myData2 = myData2.astype('float32')
+print(myData2.shape)
 myData2 = np.transpose(myData2, (1, 2, 3, 0))
+print(myData2.shape)
 
 X_train, X_test, X_train2, X_test2, y_train, y_test = train_test_split(
-    myData, myData2, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
+    myData, myData2, myY, test_size=0.2, shuffle=True, stratify=myActors, random_state=20
 )
 
 print('start model')
@@ -201,7 +204,7 @@ x2 = Flatten()(x2)
 merged = Concatenate()([x1, x2])
 merged = Dense(64, activation='relu')(merged)
 merged = Dropout(0.2)(merged)
-output = Dense(7, activation='softmax')(merged)
+output = Dense(8, activation='softmax')(merged)
 
 
 model = Model(inputs=[input_128, input_32], outputs=output)

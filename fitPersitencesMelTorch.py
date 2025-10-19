@@ -27,6 +27,7 @@ from tensorflow.keras.metrics import AUC
 from tensorflow.keras.metrics import SparseCategoricalAccuracy, TopKCategoricalAccuracy
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.utils import plot_model
+from sklearn.model_selection import GroupShuffleSplit
 
 
 import logging, os
@@ -88,12 +89,8 @@ from tensorflow.keras.metrics import Metric
 
 folder = './savefiles'
 
-maxElements = 8000
-
-def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
+def findFilesFromPattern(pattern):
     pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
-    heatmaps_dict = {}
-
     heatmaps_dict = {}
 
     for filename in os.listdir(folder):
@@ -103,49 +100,46 @@ def findFilesFromPattern(pattern, maxvalue = maxElements, maxdim = 2):
             i, j = int(i), int(j)
             filepath = os.path.join(folder, filename)
             data = np.load(filepath)
-            if j >= maxvalue * maxdim:
-                continue
             
-            if i not in heatmaps_dict:
-                heatmaps_dict[i] = []
-            
-            while len(heatmaps_dict[i]) <= j:
-                heatmaps_dict[i].append(None)
-            
-            heatmaps_dict[i][j] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion}
-    return [heatmaps_dict[i] for i in sorted(heatmaps_dict.keys())]
+            heatmaps_dict[filename] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+
+    return heatmaps_dict
 
 mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
 melwasserstein = findFilesFromPattern('wassersteinHeat')
 meltimeeuclid = findFilesFromPattern('timeMetricHeat')
 meleuclid = findFilesFromPattern('euclideanHeat')
 
-def load_spectrograms(prefix, path='./savefiles'):
-    pattern = os.path.join(path, f"{prefix}_*.npy")
-    file_list = sorted(glob(pattern)) 
-    return [np.load(file) for i, file in enumerate(file_list) if i < maxElements]
+def load_spectrograms(prefixes, path='./savefiles'):
+    patterns = []
+    for prefix in prefixes:
+        patterns.append(os.path.join(path, f"{prefix}_*.npy"))
+    my_globs = glob(patterns[0])
+    for pattern in patterns[1:]:
+        my_globs = my_globs + glob(pattern)
+    file_list = sorted(my_globs) 
+    return [np.load(file) for i, file in enumerate(file_list)]
 
-myRaw = [
-    load_spectrograms("savee"),
-    load_spectrograms("tess"),
-    load_spectrograms("radvess"),
-    load_spectrograms("cremad"),
-]
+myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
 print(len(mfccwasserstein))
-print(len([j['data'] for j in sum([x[1::2] for x in mfccwasserstein], [])]))
+print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
+print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
 
+print(len(myRaw))
 
-myData = np.array([
-                    sum([x for x in myRaw], [])
-                    ])
+myData = np.array([myRaw])
 print('finish data')
 myData = myData.astype('float32')
 myData = np.transpose(myData, (1, 2, 3, 0))
 myEmotionMap = {
     'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
 }
-myY = np.array([myEmotionMap[j['emotion'].split('_')[-1]] - 1 for j in sum([x[::2] for x in meleuclid], [])])
-myActors = np.array([j['actor']  for j in sum([x[::2] for x in meleuclid], [])])
+myY = np.array(
+    [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+)
+myActors = np.array(
+    [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+)
 print(np.unique(myActors))
 
 print(np.unique(myY))
@@ -153,22 +147,28 @@ print(np.unique(myY))
 myY = to_categorical(myY, num_classes=8)
 
 myData2 = np.array([
-                    [j['data'] for j in sum([x[::2] for x in meleuclid], [])],
-                    [j['data'] for j in  sum([x[1::2] for x in meleuclid], [])],
-                    [j['data'] for j in  sum([x[::2] for x in meltimeeuclid], [])],
-                    [j['data'] for j in  sum([x[1::2] for x in meltimeeuclid], [])],
-                    [j['data'] for j in  sum([x[::2] for x in mfccwasserstein], [])],
-                    [j['data'] for j in  sum([x[1::2] for x in mfccwasserstein], [])],
-                    [j['data'] for j in  sum([x[::2] for x in melwasserstein], [])],
-                    [j['data'] for j in  sum([x[1::2] for x in melwasserstein], [])]
+                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0],
+                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 1],
+                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] == 0],
+                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] == 1],
+                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] == 0],
+                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] == 1],
+                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] == 0],
+                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] == 1]
                     ])
 print('finish data')
 myData2 = myData2.astype('float32')
 myData2 = np.transpose(myData2, (1, 2, 3, 0))
 
-X_train, X_test, y_train, y_test = train_test_split(
-    myData, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
-)
+splitter = GroupShuffleSplit(test_size=0.2, n_splits=1, random_state=42)
+train_idx, test_idx = next(splitter.split(myData, myY, groups=myActors))
+
+X_train, X_test = myData[train_idx], myData[test_idx]
+y_train, y_test = myY[train_idx], myY[test_idx]
+
+# X_train, X_test, y_train, y_test = train_test_split(
+#     myData, myY, test_size=0.2, shuffle=True, stratify=myY, random_state=20
+# )
 
 import torch
 import torch.nn as nn
@@ -216,6 +216,7 @@ class CNNModel(nn.Module):
 # ================================================================
 # Assume X_train, y_train, X_test, y_test are numpy arrays
 # Shapes: X: (N, 32, 32, 8), y: one-hot (N, 7)
+print(X_train.shape)
 X_train_tensor = torch.tensor(X_train.transpose(0, 3, 1, 2), dtype=torch.float32)
 y_train_tensor = torch.tensor(np.argmax(y_train, axis=1), dtype=torch.long)
 X_test_tensor = torch.tensor(X_test.transpose(0, 3, 1, 2), dtype=torch.float32)
@@ -278,7 +279,11 @@ for epoch in range(num_epochs):
     val_auc = auroc(val_preds, val_labels).item()
     val_top3 = top3acc(val_preds, val_labels).item()
 
-    print(f"Epoch {epoch+1}/{num_epochs} - val_auc: {val_auc:.4f} - top3_acc: {val_top3:.4f}")
+    y_pred = torch.argmax(val_preds, dim=1)
+
+    accuracy = (y_pred == val_labels).float().mean()
+
+    print(f"Epoch {epoch+1}/{num_epochs} - val_auc: {val_auc:.4f} - top3_acc: {val_top3:.4f} - val_acc: {accuracy.item():.4f}")
 
     # Save best model
     if val_auc > best_val_auc:
