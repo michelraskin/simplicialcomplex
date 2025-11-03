@@ -244,7 +244,7 @@ model = CNNModel().to(device)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
-num_epochs = 100
+num_epochs = 15
 
 best_val_auc = 0.0
 auroc = MulticlassAUROC(num_classes=8).to(device)
@@ -297,17 +297,31 @@ for epoch in range(num_epochs):
 model.load_state_dict(torch.load("best_model.pth"))
 model.eval()
 
-all_preds, all_labels = [], []
+all_preds, all_labels, all_preds2, all_labels2 = [], [], [], []
 with torch.no_grad():
     for X_batch, y_batch in test_loader:
         X_batch = X_batch.to(device)
         outputs = model(X_batch)
         preds = torch.argmax(outputs, dim=1).cpu().numpy()
         all_preds.extend(preds)
+        all_preds2.append(torch.softmax(outputs, dim=1))
         all_labels.extend(y_batch.numpy())
+        all_labels2.append(y_batch.to(device))
+
+    val_preds = torch.cat(all_preds2)
+    val_labels = torch.cat(all_labels2)
+    val_auc = auroc(val_preds, val_labels).item()
+    val_top3 = top3acc(val_preds, val_labels).item()
+
+    y_pred = torch.argmax(val_preds, dim=1)
+
+    accuracy = (y_pred == val_labels).float().mean()
+
+    print(f"Epoch {epoch+1}/{num_epochs} - val_auc: {val_auc:.4f} - top3_acc: {val_top3:.4f} - val_acc: {accuracy.item():.4f}")
+
 
 # Classification report
-class_labels = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad']
+class_labels = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust', 'surprised']
 report = classification_report(all_labels, all_preds, target_names=class_labels)
 print(report)
 
