@@ -101,7 +101,7 @@ def findFilesFromPattern(pattern):
             filepath = os.path.join(folder, filename)
             data = np.load(filepath)
             
-            heatmaps_dict[filename] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+            heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
 
     return heatmaps_dict
 
@@ -193,22 +193,29 @@ class DualInputCNN(nn.Module):
         
         # Branch 1: for 128x128x1
         self.branch1 = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, kernel_size=3, padding=1),
-            nn.MaxPool2d(2)
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            # Try normali
+            nn.BatchNorm2d(32),
         )
         
         # Branch 2: for 32x32x8
         self.branch2 = nn.Sequential(
-            nn.Conv2d(8, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(8, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, kernel_size=3, padding=1),
-            nn.MaxPool2d(2)
+            nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.BatchNorm2d(32),
         )
 
         # Compute flattened sizes (lazy init: done in forward)
@@ -218,7 +225,14 @@ class DualInputCNN(nn.Module):
         # Merge + classifier head
         self.fc1 = nn.Linear(1, 1)  # placeholder — reset after knowing sizes
         self.dropout = nn.Dropout(0.2)
-        self.fc2 = nn.Linear(256, num_classes)
+
+        self.branch3 = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, num_classes)
+        )
+
     
     def forward(self, x1, x2):
         # Pass through each branch
@@ -231,7 +245,7 @@ class DualInputCNN(nn.Module):
 
         if not hasattr(self, 'fc1_initialized') or not self.fc1_initialized:
             merged_dim = x1.shape[1] + x2.shape[1]
-            self.fc1 = nn.Linear(merged_dim, 256).to(x1.device)  
+            self.fc1 = nn.Linear(merged_dim, 64).to(x1.device)  
             self.fc1_initialized = True
         
         # Merge branches
@@ -239,7 +253,7 @@ class DualInputCNN(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout(x)
-        x = self.fc2(x)
+        x = self.branch3(x)
         return F.softmax(x, dim=1)
 
 # --- Instantiate model ---
@@ -281,7 +295,7 @@ model = DualInputCNN().to(device)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters())
-num_epochs = 20
+num_epochs = 30
 
 best_val_auc = 0.0
 auroc = MulticlassAUROC(num_classes=8).to(device)
@@ -292,11 +306,14 @@ top3acc = MulticlassAccuracy(num_classes=8, top_k=3).to(device)
 # ================================================================
 for epoch in range(num_epochs):
     model.train()
+    train_preds, train_labels = [], []
     for X_batch, X2_batch, y_batch in train_loader:
         X_batch, X2_batch, y_batch = X_batch.to(device), X2_batch.to(device), y_batch.to(device)
         optimizer.zero_grad()
         outputs = model(X_batch, X2_batch)
         loss = criterion(outputs, y_batch)
+        train_preds.append(torch.softmax(outputs, dim=1))
+        train_labels.append(y_batch)
         loss.backward()
         optimizer.step()
 
@@ -328,23 +345,36 @@ for epoch in range(num_epochs):
         torch.save(model.state_dict(), "best_model.pth")
         print("✅ Saved new best model.")
 
+    train_preds = torch.cat(train_preds)
+    train_labels = torch.cat(train_labels)
+    val_auc = auroc(train_preds, train_labels).item()
+    val_top3 = top3acc(train_preds, train_labels).item()
+
+    y_pred = torch.argmax(train_preds, dim=1)
+
+    accuracy = (y_pred == train_labels).float().mean()
+    print(f"Epoch {epoch+1}/{num_epochs} - train_auc: {val_auc:.4f} - train_top3_acc: {val_top3:.4f} - train_acc: {accuracy.item():.4f}")
+
 # ================================================================
 # Evaluation
 # ================================================================
 model.load_state_dict(torch.load("best_model.pth"))
 model.eval()
 
-all_preds, all_labels = [], []
+all_preds, all_labels, all_preds2, all_labels2 = [], [], [], []
 with torch.no_grad():
     for X_batch, X2_batch, y_batch in test_loader:
-        X_batch, X2_batch = X_batch.to(device), X2_batch.to(device)
+        X_batch = X_batch.to(device)
+        X2_batch = X2_batch.to(device)
         outputs = model(X_batch, X2_batch)
         preds = torch.argmax(outputs, dim=1).cpu().numpy()
         all_preds.extend(preds)
+        all_preds2.append(torch.softmax(outputs, dim=1))
         all_labels.extend(y_batch.numpy())
+        all_labels2.append(y_batch.to(device))
 
-    val_preds = torch.cat(all_preds)
-    val_labels = torch.cat(all_labels)
+    val_preds = torch.cat(all_preds2)
+    val_labels = torch.cat(all_labels2)
     val_auc = auroc(val_preds, val_labels).item()
     val_top3 = top3acc(val_preds, val_labels).item()
 

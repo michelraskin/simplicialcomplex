@@ -101,7 +101,7 @@ def findFilesFromPattern(pattern):
             filepath = os.path.join(folder, filename)
             data = np.load(filepath)
             
-            heatmaps_dict[filename] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+            heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
 
     return heatmaps_dict
 

@@ -224,7 +224,7 @@ history = model.fit([X_train, X_train2], y_train, epochs=60, batch_size=256, val
 model = load_model('best_model.h5')
 
 from sklearn.metrics import confusion_matrix, classification_report
-class_labels = ['angry', 'disgusted', 'fearful', 'happy', 'neutral', 'surprised', 'sad']
+class_labels = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust', 'surprised']
 y_pred = model.predict([X_test, X_test2])
 y_pred_classes = np.argmax(y_pred, axis=1)
 y_test_classes = np.argmax(y_test, axis=1)
