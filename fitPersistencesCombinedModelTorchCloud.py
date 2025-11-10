@@ -58,7 +58,7 @@ bucket = client.bucket(bucket_name)
 blob = bucket.blob(blob_name)
 
 # --- download file into memory ---
-data_bytes = blob.download_as_bytes()
+data_bytes = blob.download_as_string()
 
 # --- load npz into numpy ---
 data_npz = np.load(BytesIO(data_bytes))

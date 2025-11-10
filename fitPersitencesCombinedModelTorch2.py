@@ -87,84 +87,148 @@ import re
 import tensorflow.keras.backend as K
 from tensorflow.keras.metrics import Metric
 
-folder = './savefiles'
+if os.path.isfile("myData.npz"):
+    print("✅ 'data.npz' exists.")
+    with np.load("myData.npz") as data:
+        myData = data['myData']
+        myData2 = data['myData2']
+        myY = data['myY']
+        myActors = data['myActors']
+        myDatasets = data['myDatasets']
+        print(np.unique(myY))
+        print(np.unique(myActors))
+else:
 
-def findFilesFromPattern(pattern):
-    pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
-    heatmaps_dict = {}
+    folder = './savefiles'
 
-    for filename in os.listdir(folder):
-        match = pattern.match(filename)
-        if match:
-            dataset, actor, emotion, i, j = map(str, match.groups())
-            i, j = int(i), int(j)
-            filepath = os.path.join(folder, filename)
-            data = np.load(filepath)
-            
-            heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+    def findFilesFromPattern(pattern):
+        pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
+        heatmaps_dict = {}
 
-    return heatmaps_dict
+        for filename in os.listdir(folder):
+            match = pattern.match(filename)
+            if match:
+                dataset, actor, emotion, i, j = map(str, match.groups())
+                i, j = int(i), int(j)
+                filepath = os.path.join(folder, filename)
+                data = np.load(filepath)
+                
+                heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
 
-mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
-melwasserstein = findFilesFromPattern('wassersteinHeat')
-meltimeeuclid = findFilesFromPattern('timeMetricHeat')
-meleuclid = findFilesFromPattern('euclideanHeat')
+        return heatmaps_dict
 
-def load_spectrograms(prefixes, path='./savefiles'):
-    patterns = []
-    for prefix in prefixes:
-        patterns.append(os.path.join(path, f"{prefix}_*.npy"))
-    my_globs = glob(patterns[0])
-    for pattern in patterns[1:]:
-        my_globs = my_globs + glob(pattern)
-    file_list = sorted(my_globs) 
-    return [np.load(file) for i, file in enumerate(file_list)]
+    mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
+    melwasserstein = findFilesFromPattern('wassersteinHeat')
+    meltimeeuclid = findFilesFromPattern('timeMetricHeat')
+    meleuclid = findFilesFromPattern('euclideanHeat')
 
-myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
-print(len(mfccwasserstein))
-print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
-print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
-print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
+    def load_spectrograms(prefixes, path='./savefiles'):
+        patterns = []
+        for prefix in prefixes:
+            patterns.append(os.path.join(path, f"{prefix}_*.npy"))
+        my_globs = glob(patterns[0])
+        for pattern in patterns[1:]:
+            my_globs = my_globs + glob(pattern)
+        file_list = sorted(my_globs) 
+        return [np.load(file) for i, file in enumerate(file_list)]
 
-print(len(myRaw))
+    myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
+    print(len(mfccwasserstein))
+    print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
+    print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
+    print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
 
-myData = np.array([myRaw])
-print('finish data')
-myData = myData.astype('float32')
-myData = np.transpose(myData, (1, 2, 3, 0))
-myEmotionMap = {
-    'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
-}
-myY = np.array(
-    [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
-)
-myActors = np.array(
-    [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
-)
-print(np.unique(myActors))
+    print(len(myRaw))
 
-print(np.unique(myY))
+    myData = np.array([myRaw])
+    print('finish data')
+    myData = myData.astype('float32')
+    myData = np.transpose(myData, (1, 2, 3, 0))
+    myEmotionMap = {
+        'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
+    }
+    myY = np.array(
+        [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+    )
+    myActors = np.array(
+        [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+    )
+    print(np.unique(myActors))
 
-myY = to_categorical(myY, num_classes=8)
+    print(np.unique(myY))
 
-myData2 = np.array([
-                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0],
-                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1],
-                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0],
-                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1],
-                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0],
-                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1],
-                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0],
-                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1]
-                    ])
-print('finish data')
-myData2 = myData2.astype('float32')
-print(myData2.shape)
-myData2 = np.transpose(myData2, (1, 2, 3, 0))
-print(myData2.shape)
+    myY = to_categorical(myY, num_classes=6)
 
-splitter = GroupShuffleSplit(test_size=0.2, n_splits=1, random_state=42)
-train_idx, test_idx = next(splitter.split(myData, myY, groups=myActors))
+    myData2 = np.array([
+                        [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0],
+                        [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1],
+                        [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0],
+                        [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1],
+                        [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0],
+                        [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1],
+                        [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0],
+                        [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1]
+                        ])
+    print('finish data')
+    myData2 = myData2.astype('float32')
+    print(myData2.shape)
+    myData2 = np.transpose(myData2, (1, 2, 3, 0))
+    print(myData2.shape)
+
+splitter = GroupShuffleSplit(test_size=0.2, n_splits=1)
+groups = myActors#np.array([f"{d}_{a}_{c}" for d, a, c in zip(myActors, myDatasets)])
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import StratifiedShuffleSplit
+
+def stratified_group_shuffle_split(y, groups, test_size=0.2, random_state=42):
+    """
+    Perform a group-wise split that is also approximately stratified by labels.
+
+    Parameters
+    ----------
+    y : array-like
+        Class labels (for stratification)
+    groups : array-like
+        Group IDs (e.g., actors, or dataset-actor pairs)
+    test_size : float
+        Fraction of groups to allocate to test/val split
+    random_state : int
+        Reproducibility seed
+    """
+    rng = np.random.default_rng(random_state)
+
+    df = pd.DataFrame({'y': y, 'group': groups})
+    
+    # Aggregate label info at group level
+    # (majority class per group — or mean for regression-like)
+    group_labels = (
+        df.groupby('group')['y']
+          .agg(lambda s: s.value_counts().index[0])
+          .reset_index()
+    )
+    
+    # Prepare stratified split on groups
+    sss = StratifiedShuffleSplit(
+        n_splits=1, test_size=test_size, random_state=random_state
+    )
+    
+    group_indices = np.arange(len(group_labels))
+    for train_g, test_g in sss.split(group_indices, group_labels['y']):
+        train_groups = group_labels['group'].iloc[train_g].values
+        test_groups = group_labels['group'].iloc[test_g].values
+    
+    # Map back to sample indices
+    train_mask = df['group'].isin(train_groups)
+    test_mask = df['group'].isin(test_groups)
+    
+    train_idx = np.where(train_mask)[0]
+    test_idx = np.where(test_mask)[0]
+    
+    return train_idx, test_idx
+
+train_idx, test_idx = stratified_group_shuffle_split(y=np.argmax(myY, axis=1), groups=groups, test_size=0.2)
 
 X_train, X_test, X_train2, X_test2 = myData[train_idx], myData[test_idx], myData2[train_idx], myData2[test_idx]
 y_train, y_test = myY[train_idx], myY[test_idx]
@@ -178,7 +242,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader, TensorDataset, random_split, Subset
 from torchmetrics.classification import MulticlassAUROC, MulticlassAccuracy
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
@@ -188,7 +252,7 @@ import numpy as np
 
 # --- Model definition ---
 class CNNModel(nn.Module):
-    def __init__(self, num_classes=8):
+    def __init__(self, num_classes=6):
         super(CNNModel, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
@@ -202,7 +266,7 @@ class CNNModel(nn.Module):
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 16 * 16, 256),  # for input 32×32 after two poolings
+            nn.Linear(256 * 16 * 16, 256),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(256, num_classes)
@@ -214,8 +278,8 @@ class CNNModel(nn.Module):
         return x
     
 class CNNModel2(nn.Module):
-    def __init__(self, num_classes=8):
-        super(CNNModel, self).__init__()
+    def __init__(self, num_classes=6):
+        super(CNNModel2, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(8, 32, kernel_size=3, padding=1),
             nn.ReLU(),
@@ -241,14 +305,27 @@ class CNNModel2(nn.Module):
         x = self.features(x)
         x = self.classifier(x)
         return x
+    
+class FusionNet(nn.Module):
+    def __init__(self, num_classes, dropout_prob=0.2):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout_prob)
+        self.fc = nn.Linear(num_classes * 2, num_classes)  # combine logits/features
+
+    def forward(self, logits1, logits2):
+        # Concatenate logits from two models
+        x = torch.cat([logits1, logits2], dim=1)
+        x = self.dropout(x)      # apply dropout
+        x = self.fc(x)           # output logits
+        return x
 
 
 # --- Instantiate model ---
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-model = CNNModel(num_classes=8).to(device)
-model2 = CNNModel2(num_classes=8).to(device)
+model = CNNModel(num_classes=6).to(device)
+model2 = CNNModel2(num_classes=6).to(device)
 
 # --- Loss and optimizer ---
 criterion = nn.CrossEntropyLoss()
@@ -263,9 +340,11 @@ X_test2_tensor = torch.tensor(X_test2.transpose(0, 3, 1, 2), dtype=torch.float32
 y_test_tensor = torch.tensor(np.argmax(y_test, axis=1), dtype=torch.long)
 
 dataset = TensorDataset(X_train_tensor, X_train2_tensor, y_train_tensor)
-train_size = int(0.8 * len(dataset))
-val_size = len(dataset) - train_size
-train_ds, val_ds = random_split(dataset, [train_size, val_size])
+train_idx, val_idx = stratified_group_shuffle_split(y=np.argmax(y_train, axis=1), groups=groups[train_idx], test_size=0.2)
+
+train_ds = Subset(dataset, train_idx)
+val_ds = Subset(dataset, val_idx)
+
 
 train_loader = DataLoader(train_ds, batch_size=256, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=256)
@@ -283,14 +362,18 @@ else:
 model = CNNModel().to(device)
 model2 = CNNModel2().to(device)
 
+
+fusion = FusionNet(num_classes=6).to(device)
+fusion_optimizer = torch.optim.Adam(fusion.parameters(), lr=1e-3)
+
 criterion = nn.CrossEntropyLoss()
 optimizer= optim.Adam(model.parameters())
 optimizer2= optim.Adam(model2.parameters())
-num_epochs = 30
+num_epochs = 20
 
 best_val_auc = 0.0
-auroc = MulticlassAUROC(num_classes=8).to(device)
-top3acc = MulticlassAccuracy(num_classes=8, top_k=3).to(device)
+auroc = MulticlassAUROC(num_classes=6).to(device)
+top3acc = MulticlassAccuracy(num_classes=6, top_k=3).to(device)
 
 # ================================================================
 # Training Loop with Checkpoint
@@ -301,17 +384,25 @@ for epoch in range(num_epochs):
     for X_batch, X2_batch, y_batch in train_loader:
         X_batch, X2_batch, y_batch = X_batch.to(device), X2_batch.to(device), y_batch.to(device)
         optimizer.zero_grad()
+        optimizer2.zero_grad()
+        fusion_optimizer.zero_grad()
+
         outputs = model(X_batch)
         outputs2 = model2(X2_batch)
         loss = criterion(outputs, y_batch)
         loss2 = criterion(outputs2, y_batch)
-        train_preds.append(torch.softmax(outputs2, dim=1))
+        combined_logits = fusion(outputs, outputs2)
+        loss3 = criterion(combined_logits, y_batch)
+        loss3.backward()
+        
+        train_preds.append(torch.softmax(combined_logits, dim=1))
         train_labels.append(y_batch)
-        loss.backward()
+
         optimizer.step()
 
-        loss2.backward()
         optimizer2.step()
+
+        fusion_optimizer.step()
 
     # Validation
     model.eval()
@@ -320,7 +411,10 @@ for epoch in range(num_epochs):
         for X_val, X2_val, y_val in val_loader:
             X_val, X2_val, y_val = X_val.to(device), X2_val.to(device), y_val.to(device)
             outputs = model(X_val)
-            preds = torch.softmax(outputs, dim=1)
+            outputs2 = model2(X2_val)
+
+            combined_logits = fusion(outputs, outputs2)
+            preds = torch.softmax(combined_logits, dim=1)
             val_preds.append(preds)
             val_labels.append(y_val)
     val_preds = torch.cat(val_preds)
@@ -362,8 +456,12 @@ with torch.no_grad():
     for X_batch, X2_batch, y_batch in test_loader:
         X_batch = X_batch.to(device)
         X2_batch = X2_batch.to(device)
-        outputs = model(X_batch, X2_batch)
-        preds = torch.argmax(outputs, dim=1).cpu().numpy()
+        outputs = model(X_batch)
+        outputs2 = model2(X2_batch)
+
+        combined_logits = fusion(outputs, outputs2)
+        preds = torch.softmax(combined_logits, dim=1)
+        preds = torch.argmax(combined_logits, dim=1).cpu().numpy()
         all_preds.extend(preds)
         all_preds2.append(torch.softmax(outputs, dim=1))
         all_labels.extend(y_batch.numpy())
@@ -381,7 +479,7 @@ with torch.no_grad():
     print(f"Epoch {epoch+1}/{num_epochs} - val_auc: {val_auc:.4f} - top3_acc: {val_top3:.4f} - val_acc: {accuracy.item():.4f}")
 
 # Classification report
-class_labels = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust', 'surprised']
+class_labels = ['neutral', 'happy', 'sad', 'angry', 'fearful', 'disgust']
 report = classification_report(all_labels, all_preds, target_names=class_labels)
 print(report)
 

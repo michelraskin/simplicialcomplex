@@ -87,82 +87,93 @@ import re
 import tensorflow.keras.backend as K
 from tensorflow.keras.metrics import Metric
 
-folder = './savefiles'
+if os.path.isfile("myData.npz"):
+    print("✅ 'data.npz' exists.")
+    with np.load("myData.npz") as data:
+        myData = data['myData']
+        myData2 = data['myData2']
+        myY = data['myY']
+        myActors = data['myActors']
+        print(np.unique(myY))
+        print(np.unique(myActors))
+else:
 
-def findFilesFromPattern(pattern):
-    pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
-    heatmaps_dict = {}
+    folder = './savefiles'
 
-    for filename in os.listdir(folder):
-        match = pattern.match(filename)
-        if match:
-            dataset, actor, emotion, i, j = map(str, match.groups())
-            i, j = int(i), int(j)
-            filepath = os.path.join(folder, filename)
-            data = np.load(filepath)
-            
-            heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+    def findFilesFromPattern(pattern):
+        pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
+        heatmaps_dict = {}
 
-    return heatmaps_dict
+        for filename in os.listdir(folder):
+            match = pattern.match(filename)
+            if match:
+                dataset, actor, emotion, i, j = map(str, match.groups())
+                i, j = int(i), int(j)
+                filepath = os.path.join(folder, filename)
+                data = np.load(filepath)
+                
+                heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
 
-mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
-melwasserstein = findFilesFromPattern('wassersteinHeat')
-meltimeeuclid = findFilesFromPattern('timeMetricHeat')
-meleuclid = findFilesFromPattern('euclideanHeat')
+        return heatmaps_dict
 
-def load_spectrograms(prefixes, path='./savefiles'):
-    patterns = []
-    for prefix in prefixes:
-        patterns.append(os.path.join(path, f"{prefix}_*.npy"))
-    my_globs = glob(patterns[0])
-    for pattern in patterns[1:]:
-        my_globs = my_globs + glob(pattern)
-    file_list = sorted(my_globs) 
-    # print(file_list)
-    return [np.load(file) for i, file in enumerate(file_list)]
-# print(sorted(mfccwasserstein.keys()))
-myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
-print(len(mfccwasserstein))
-print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
-print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
-print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
+    mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
+    melwasserstein = findFilesFromPattern('wassersteinHeat')
+    meltimeeuclid = findFilesFromPattern('timeMetricHeat')
+    meleuclid = findFilesFromPattern('euclideanHeat')
 
-print(len(myRaw))
+    def load_spectrograms(prefixes, path='./savefiles'):
+        patterns = []
+        for prefix in prefixes:
+            patterns.append(os.path.join(path, f"{prefix}_*.npy"))
+        my_globs = glob(patterns[0])
+        for pattern in patterns[1:]:
+            my_globs = my_globs + glob(pattern)
+        file_list = sorted(my_globs) 
+        # print(file_list)
+        return [np.load(file) for i, file in enumerate(file_list)]
+    # print(sorted(mfccwasserstein.keys()))
+    myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
+    print(len(mfccwasserstein))
+    print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
+    print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
+    print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
 
-myData = np.array([myRaw])
-print('finish data')
-myData = myData.astype('float32')
-myData = np.transpose(myData, (1, 2, 3, 0))
-myEmotionMap = {
-    'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
-}
-myY = np.array(
-    [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised']
-)
-myActors = np.array(
-    [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised']
-)
-print(np.unique(myActors))
+    print(len(myRaw))
 
-print(np.unique(myY))
+    myData = np.array([myRaw])
+    print('finish data')
+    myData = myData.astype('float32')
+    myData = np.transpose(myData, (1, 2, 3, 0))
+    myEmotionMap = {
+        'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
+    }
+    myY = np.array(
+        [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised']
+    )
+    myActors = np.array(
+        [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised']
+    )
+    print(np.unique(myActors))
 
-myY = to_categorical(myY, num_classes=8)
+    print(np.unique(myY))
 
-myData2 = np.array([
-                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0 and  meleuclid[key]['emotion'] != 'calm' and  meleuclid[key]['emotion'] != 'surprised'],
-                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1 and  meleuclid[key]['emotion'] != 'calm' and  meleuclid[key]['emotion'] != 'surprised'],
-                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0 and  meltimeeuclid[key]['emotion'] != 'calm' and  meltimeeuclid[key]['emotion'] != 'surprised'],
-                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1 and  meltimeeuclid[key]['emotion'] != 'calm' and  meltimeeuclid[key]['emotion'] != 'surprised'],
-                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised'],
-                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised'],
-                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0 and  melwasserstein[key]['emotion'] != 'calm' and  melwasserstein[key]['emotion'] != 'surprised'],
-                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1 and  melwasserstein[key]['emotion'] != 'calm' and  melwasserstein[key]['emotion'] != 'surprised']
-                    ])
-print('finish data')
-myData2 = myData2.astype('float32')
-print(myData2.shape)
-myData2 = np.transpose(myData2, (1, 2, 3, 0))
-print(myData2.shape)
+    myY = to_categorical(myY, num_classes=8)
+
+    myData2 = np.array([
+                        [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0 and  meleuclid[key]['emotion'] != 'calm' and  meleuclid[key]['emotion'] != 'surprised'],
+                        [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1 and  meleuclid[key]['emotion'] != 'calm' and  meleuclid[key]['emotion'] != 'surprised'],
+                        [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0 and  meltimeeuclid[key]['emotion'] != 'calm' and  meltimeeuclid[key]['emotion'] != 'surprised'],
+                        [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1 and  meltimeeuclid[key]['emotion'] != 'calm' and  meltimeeuclid[key]['emotion'] != 'surprised'],
+                        [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised'],
+                        [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1 and  mfccwasserstein[key]['emotion'] != 'calm' and  mfccwasserstein[key]['emotion'] != 'surprised'],
+                        [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0 and  melwasserstein[key]['emotion'] != 'calm' and  melwasserstein[key]['emotion'] != 'surprised'],
+                        [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1 and  melwasserstein[key]['emotion'] != 'calm' and  melwasserstein[key]['emotion'] != 'surprised']
+                        ])
+    print('finish data')
+    myData2 = myData2.astype('float32')
+    print(myData2.shape)
+    myData2 = np.transpose(myData2, (1, 2, 3, 0))
+    print(myData2.shape)
 
 splitter = GroupShuffleSplit(test_size=0.2, n_splits=1, random_state=42)
 train_idx, test_idx = next(splitter.split(myData2, myY, groups=myActors))

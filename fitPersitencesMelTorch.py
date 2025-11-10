@@ -136,10 +136,14 @@ else:
     print(len(mfccwasserstein))
     print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
     print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
+    print(np.unique(np.array([(x.shape) for x in myRaw])))
+    unique_shapes = {x.shape for x in myRaw}
+    print(unique_shapes)
+    # print(np.unique(([(x) for x in myRaw])))
 
     print(len(myRaw))
 
-    myData = np.array([myRaw])
+    myData = np.stack([myRaw])
     print('finish data')
     myData = myData.astype('float32')
     myData = np.transpose(myData, (1, 2, 3, 0))
@@ -211,7 +215,7 @@ class CNNModel(nn.Module):
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 16 * 16, 256),  # for input 32×32 after two poolings
+            nn.Linear(256 * 16 * 16, 256),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(256, num_classes)
