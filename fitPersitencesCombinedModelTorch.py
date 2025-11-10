@@ -87,81 +87,118 @@ import re
 import tensorflow.keras.backend as K
 from tensorflow.keras.metrics import Metric
 
-folder = './savefiles'
+from google.cloud import storage
 
-def findFilesFromPattern(pattern):
-    pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
-    heatmaps_dict = {}
+import os
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./strange-metrics-266115-d7ca05a26868.json"
 
-    for filename in os.listdir(folder):
-        match = pattern.match(filename)
-        if match:
-            dataset, actor, emotion, i, j = map(str, match.groups())
-            i, j = int(i), int(j)
-            filepath = os.path.join(folder, filename)
-            data = np.load(filepath)
-            
-            heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+if os.path.isfile("myData.npz"):
+    print("✅ 'data.npz' exists.")
+    with np.load("myData.npz") as data:
+        myData = data['myData']
+        myData2 = data['myData2']
+        myY = data['myY']
+        myActors = data['myActors']
+        print(np.unique(myY))
+        print(np.unique(myActors))
+else:
 
-    return heatmaps_dict
+    folder = './savefiles'
 
-mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
-melwasserstein = findFilesFromPattern('wassersteinHeat')
-meltimeeuclid = findFilesFromPattern('timeMetricHeat')
-meleuclid = findFilesFromPattern('euclideanHeat')
+    def findFilesFromPattern(pattern):
+        pattern = re.compile(pattern + r'_(.*?)_(.*?)_(.*?)_(\d+)_(\d+)\.npy')
+        heatmaps_dict = {}
 
-def load_spectrograms(prefixes, path='./savefiles'):
-    patterns = []
-    for prefix in prefixes:
-        patterns.append(os.path.join(path, f"{prefix}_*.npy"))
-    my_globs = glob(patterns[0])
-    for pattern in patterns[1:]:
-        my_globs = my_globs + glob(pattern)
-    file_list = sorted(my_globs) 
-    return [np.load(file) for i, file in enumerate(file_list)]
+        for filename in os.listdir(folder):
+            match = pattern.match(filename)
+            if match:
+                dataset, actor, emotion, i, j = map(str, match.groups())
+                i, j = int(i), int(j)
+                filepath = os.path.join(folder, filename)
+                data = np.load(filepath)
+                
+                heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
 
-myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
-print(len(mfccwasserstein))
-print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
-print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
-print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
+        return heatmaps_dict
 
-print(len(myRaw))
+    mfccwasserstein = findFilesFromPattern('wassersteinMfccHeat')
+    melwasserstein = findFilesFromPattern('wassersteinHeat')
+    meltimeeuclid = findFilesFromPattern('timeMetricHeat')
+    meleuclid = findFilesFromPattern('euclideanHeat')
 
-myData = np.array([myRaw])
-print('finish data')
-myData = myData.astype('float32')
-myData = np.transpose(myData, (1, 2, 3, 0))
-myEmotionMap = {
-    'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
-}
-myY = np.array(
-    [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
-)
-myActors = np.array(
-    [mfccwasserstein[key]['actor'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
-)
-print(np.unique(myActors))
+    def load_spectrograms(prefixes, path='./savefiles'):
+        patterns = []
+        for prefix in prefixes:
+            patterns.append(os.path.join(path, f"{prefix}_*.npy"))
+        my_globs = glob(patterns[0])
+        for pattern in patterns[1:]:
+            my_globs = my_globs + glob(pattern)
+        file_list = sorted(my_globs) 
+        return [np.load(file) for i, file in enumerate(file_list)]
 
-print(np.unique(myY))
+    myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
+    print(len(mfccwasserstein))
+    print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]))
+    print(len([mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1]))
+    print(np.array([[meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] == 0]]).shape)
 
-myY = to_categorical(myY, num_classes=8)
+    print(len(myRaw))
 
-myData2 = np.array([
-                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0],
-                    [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1],
-                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0],
-                    [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1],
-                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0],
-                    [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1],
-                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0],
-                    [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1]
-                    ])
-print('finish data')
-myData2 = myData2.astype('float32')
-print(myData2.shape)
-myData2 = np.transpose(myData2, (1, 2, 3, 0))
-print(myData2.shape)
+    myData = np.array([myRaw])
+    print('finish data')
+    myData = myData.astype('float32')
+    myData = np.transpose(myData, (1, 2, 3, 0))
+    myEmotionMap = {
+        'neutral': 1, 'calm':2, 'happy':3, 'sad':4, 'angry':5, 'fearful':6, 'disgust':7, 'surprised':8
+    }
+    myY = np.array(
+        [myEmotionMap[mfccwasserstein[key]['emotion']] -1 for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+    )
+    print(np.unique(myY))
+    myActors = np.array(
+        [mfccwasserstein[key]['actor'] + '_' + mfccwasserstein[key]['dataset']  for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+    )
+    print(np.unique(myActors))
+
+    print(np.unique(myY))
+
+    myY = to_categorical(myY, num_classes=8)
+
+    myData2 = np.array([
+                        [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0],
+                        [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 1],
+                        [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 0],
+                        [meltimeeuclid[key]['data'] for key in sorted(meltimeeuclid.keys()) if meltimeeuclid[key]['type'] % 2 == 1],
+                        [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0],
+                        [mfccwasserstein[key]['data'] for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 1],
+                        [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 0],
+                        [melwasserstein[key]['data'] for key in sorted(melwasserstein.keys()) if melwasserstein[key]['type'] % 2 == 1]
+                        ])
+    print('finish data')
+    myData2 = myData2.astype('float32')
+    print(myData2.shape)
+    myData2 = np.transpose(myData2, (1, 2, 3, 0))
+    print(myData2.shape)
+
+    def upload_to_gcs(bucket_name, source_file, destination_blob):
+        """Upload a file to a GCS bucket."""
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(destination_blob)
+        blob.upload_from_filename(source_file)
+        print(f"✅ Uploaded {destination_blob} to gs://{bucket_name}/{destination_blob}")
+
+    np.savez_compressed(
+        "myData.npz",
+        myData=myData,
+        myData2=myData2,
+        myY=myY,
+        myActors=myActors
+    )
+
+    GCS_BUCKET = "simplicialcomplex-outputbucket"
+
+    upload_to_gcs(GCS_BUCKET, "myData.npz", "data/myData.npz")
 
 splitter = GroupShuffleSplit(test_size=0.2, n_splits=1, random_state=42)
 train_idx, test_idx = next(splitter.split(myData, myY, groups=myActors))
@@ -385,7 +422,7 @@ with torch.no_grad():
     print(f"Epoch {epoch+1}/{num_epochs} - val_auc: {val_auc:.4f} - top3_acc: {val_top3:.4f} - val_acc: {accuracy.item():.4f}")
 
 # Classification report
-class_labels = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust', 'surprised']
+class_labels = ['neutral', 'happy', 'sad', 'angry', 'fearful', 'disgust']
 report = classification_report(all_labels, all_preds, target_names=class_labels)
 print(report)
 
