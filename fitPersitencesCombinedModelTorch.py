@@ -351,7 +351,7 @@ class DualInputCNN(nn.Module):
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-model = DualInputCNN(num_classes=6).to(device)
+model = DualInputCNN(num_classes=8).to(device)
 
 # --- Loss and optimizer ---
 criterion = nn.CrossEntropyLoss()
@@ -434,8 +434,8 @@ for epoch in range(num_epochs):
     print(f"Epoch {epoch+1}/{num_epochs} - val_auc: {val_auc:.4f} - top3_acc: {val_top3:.4f} - val_acc: {accuracy.item():.4f}")
 
     # Save best model
-    if accuracy.item() > best_val_auc:
-        best_val_auc = accuracy.item()
+    if val_auc > best_val_auc:
+        best_val_auc = val_auc
         torch.save(model.state_dict(), "best_model.pth")
         print("✅ Saved new best model.")
 

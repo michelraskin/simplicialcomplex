@@ -157,7 +157,7 @@ else:
 
     print(np.unique(myY))
 
-    myY = to_categorical(myY, num_classes=8)
+    myY = to_categorical(myY, num_classes=6)
 
     myData2 = np.array([
                         [meleuclid[key]['data'] for key in sorted(meleuclid.keys()) if meleuclid[key]['type'] % 2 == 0 and  meleuclid[key]['emotion'] != 'calm' and  meleuclid[key]['emotion'] != 'surprised'],
@@ -175,8 +175,60 @@ else:
     myData2 = np.transpose(myData2, (1, 2, 3, 0))
     print(myData2.shape)
 
-splitter = GroupShuffleSplit(test_size=0.2, n_splits=1, random_state=42)
-train_idx, test_idx = next(splitter.split(myData2, myY, groups=myActors))
+groups = myActors#np.array([f"{d}_{a}_{c}" for d, a, c in zip(myActors, myDatasets)])
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import StratifiedShuffleSplit
+
+def stratified_group_shuffle_split(y, groups, test_size=0.2, random_state=42):
+    """
+    Perform a group-wise split that is also approximately stratified by labels.
+
+    Parameters
+    ----------
+    y : array-like
+        Class labels (for stratification)
+    groups : array-like
+        Group IDs (e.g., actors, or dataset-actor pairs)
+    test_size : float
+        Fraction of groups to allocate to test/val split
+    random_state : int
+        Reproducibility seed
+    """
+    rng = np.random.default_rng(random_state)
+
+    df = pd.DataFrame({'y': y, 'group': groups})
+    
+    # Aggregate label info at group level
+    # (majority class per group — or mean for regression-like)
+    group_labels = (
+        df.groupby('group')['y']
+          .agg(lambda s: s.value_counts().index[0])
+          .reset_index()
+    )
+    
+    # Prepare stratified split on groups
+    sss = StratifiedShuffleSplit(
+        n_splits=1, test_size=test_size, random_state=random_state
+    )
+    
+    group_indices = np.arange(len(group_labels))
+    for train_g, test_g in sss.split(group_indices, group_labels['y']):
+        train_groups = group_labels['group'].iloc[train_g].values
+        test_groups = group_labels['group'].iloc[test_g].values
+    
+    # Map back to sample indices
+    train_mask = df['group'].isin(train_groups)
+    test_mask = df['group'].isin(test_groups)
+    
+    train_idx = np.where(train_mask)[0]
+    test_idx = np.where(test_mask)[0]
+    
+    return train_idx, test_idx
+
+train_idx, test_idx = stratified_group_shuffle_split(y=np.argmax(myY, axis=1), groups=groups, test_size=0.2)
+
 
 X_train, X_test = myData2[train_idx], myData2[test_idx]
 y_train, y_test = myY[train_idx], myY[test_idx]
@@ -188,7 +240,7 @@ y_train, y_test = myY[train_idx], myY[test_idx]
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader, TensorDataset, random_split, Subset
 from torchmetrics.classification import MulticlassAUROC, MulticlassAccuracy
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
@@ -200,7 +252,7 @@ import numpy as np
 # Model Definition
 # ================================================================
 class CNNModel(nn.Module):
-    def __init__(self, num_classes=8):
+    def __init__(self, num_classes=6):
         super(CNNModel, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(8, 32, kernel_size=3, padding=1),
@@ -210,17 +262,23 @@ class CNNModel(nn.Module):
 
             nn.Conv2d(32, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.BatchNorm2d(32),
+            nn.AvgPool2d(2),
+
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(32),
+            nn.MaxPool2d(2),
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 256),  # for input 32×32 after two poolings
+            nn.Linear(32 * 8 * 2, 64),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(256, 256),  # for input 32×32 after two poolings
+            nn.Linear(64, 64),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(256, num_classes)
+            nn.Linear(64, num_classes)
         )
 
     def forward(self, x):
@@ -240,9 +298,10 @@ X_test_tensor = torch.tensor(X_test.transpose(0, 3, 1, 2), dtype=torch.float32)
 y_test_tensor = torch.tensor(np.argmax(y_test, axis=1), dtype=torch.long)
 
 dataset = TensorDataset(X_train_tensor, y_train_tensor)
-train_size = int(0.8 * len(dataset))
-val_size = len(dataset) - train_size
-train_ds, val_ds = random_split(dataset, [train_size, val_size])
+train_idx, val_idx = stratified_group_shuffle_split(y=np.argmax(y_train, axis=1), groups=groups[train_idx], test_size=0.2)
+
+train_ds = Subset(dataset, train_idx)
+val_ds = Subset(dataset, val_idx)
 
 train_loader = DataLoader(train_ds, batch_size=256, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=256)
@@ -264,8 +323,8 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 num_epochs = 25
 
 best_val_auc = 0.0
-auroc = MulticlassAUROC(num_classes=8).to(device)
-top3acc = MulticlassAccuracy(num_classes=8, top_k=3).to(device)
+auroc = MulticlassAUROC(num_classes=6).to(device)
+top3acc = MulticlassAccuracy(num_classes=6, top_k=3).to(device)
 
 # ================================================================
 # Training Loop with Checkpoint

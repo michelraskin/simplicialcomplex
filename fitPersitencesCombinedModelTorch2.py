@@ -256,20 +256,39 @@ class CNNModel(nn.Module):
         super(CNNModel, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
             nn.ReLU(),
+            nn.BatchNorm2d(32),
             nn.MaxPool2d(2),
 
             nn.Conv2d(32, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.BatchNorm2d(32),
+            nn.AvgPool2d(2),
+
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(32),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(32),
+            nn.AvgPool2d(2),
+
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(32),
+            nn.MaxPool2d(2),
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256 * 16 * 16, 256),  # for input 32×32 after two poolings
+            nn.Linear(256 * 4, 64),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(256, num_classes)
+            nn.Linear(64, 64),  # for input 32×32 after two poolings
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, num_classes)
         )
 
     def forward(self, x):
@@ -284,21 +303,30 @@ class CNNModel2(nn.Module):
             nn.Conv2d(8, 32, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(32),
+            nn.Dropout(0.2),
             nn.MaxPool2d(2),
 
             nn.Conv2d(32, 32, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.BatchNorm2d(32),
+            nn.Dropout(0.2),
+            nn.AvgPool2d(2),
+
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(32),
+            nn.Dropout(0.2),
+            nn.MaxPool2d(2),
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 256),  # for input 32×32 after two poolings
+            nn.Linear(32 * 8 * 2, 64),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(256, 256),  # for input 32×32 after two poolings
+            nn.Linear(64, 64),  # for input 32×32 after two poolings
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(256, num_classes)
+            nn.Linear(64, num_classes)
         )
 
     def forward(self, x):
@@ -315,10 +343,9 @@ class FusionNet(nn.Module):
     def forward(self, logits1, logits2):
         # Concatenate logits from two models
         x = torch.cat([logits1, logits2], dim=1)
-        x = self.dropout(x)      # apply dropout
-        x = self.fc(x)           # output logits
+        x = self.dropout(x)
+        x = self.fc(x)          
         return x
-
 
 # --- Instantiate model ---
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
@@ -340,11 +367,11 @@ X_test2_tensor = torch.tensor(X_test2.transpose(0, 3, 1, 2), dtype=torch.float32
 y_test_tensor = torch.tensor(np.argmax(y_test, axis=1), dtype=torch.long)
 
 dataset = TensorDataset(X_train_tensor, X_train2_tensor, y_train_tensor)
+
 train_idx, val_idx = stratified_group_shuffle_split(y=np.argmax(y_train, axis=1), groups=groups[train_idx], test_size=0.2)
 
 train_ds = Subset(dataset, train_idx)
 val_ds = Subset(dataset, val_idx)
-
 
 train_loader = DataLoader(train_ds, batch_size=256, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=256)
@@ -433,6 +460,8 @@ for epoch in range(num_epochs):
     if val_auc > best_val_auc:
         best_val_auc = val_auc
         torch.save(model.state_dict(), "best_model.pth")
+        torch.save(model2.state_dict(), "best_model2.pth")
+        torch.save(fusion.state_dict(), "best_model3.pth")
         print("✅ Saved new best model.")
 
     train_preds = torch.cat(train_preds)
@@ -449,7 +478,11 @@ for epoch in range(num_epochs):
 # Evaluation
 # ================================================================
 model.load_state_dict(torch.load("best_model.pth"))
+model2.load_state_dict(torch.load("best_model2.pth"))
+fusion.load_state_dict(torch.load("best_model3.pth"))
 model.eval()
+model2.eval()
+fusion.eval()
 
 all_preds, all_labels, all_preds2, all_labels2 = [], [], [], []
 with torch.no_grad():
@@ -460,10 +493,10 @@ with torch.no_grad():
         outputs2 = model2(X2_batch)
 
         combined_logits = fusion(outputs, outputs2)
-        preds = torch.softmax(combined_logits, dim=1)
+        # preds = torch.softmax(combined_logits, dim=1)
         preds = torch.argmax(combined_logits, dim=1).cpu().numpy()
         all_preds.extend(preds)
-        all_preds2.append(torch.softmax(outputs, dim=1))
+        all_preds2.append(torch.softmax(combined_logits, dim=1))
         all_labels.extend(y_batch.numpy())
         all_labels2.append(y_batch.to(device))
 
