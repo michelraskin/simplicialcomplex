@@ -13,7 +13,7 @@ from keras import backend as K
 from sklearn.preprocessing import StandardScaler
 import math
 from sklearn.datasets import load_iris
-import tensorflow as tf 
+import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import keras
 from keras.datasets import mnist
@@ -100,6 +100,7 @@ if os.path.isfile("myData.npz"):
         myY = data['myY']
         myActors = data['myActors']
         myDatasets = data['myDatasets']
+        myHasNoise = data['myHasNoise']
         print(np.unique(myY))
         print(np.unique(myActors))
 else:
@@ -117,8 +118,8 @@ else:
                 i, j = int(i), int(j)
                 filepath = os.path.join(folder, filename)
                 data = np.load(filepath)
-                
-                heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
+
+                heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j, 'has_noise': (j%4 == 0 or j%4==1)}
 
         return heatmaps_dict
 
@@ -134,7 +135,7 @@ else:
         my_globs = glob(patterns[0])
         for pattern in patterns[1:]:
             my_globs = my_globs + glob(pattern)
-        file_list = sorted(my_globs) 
+        file_list = sorted(my_globs)
         return [np.load(file) for i, file in enumerate(file_list)]
 
     myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
@@ -161,6 +162,9 @@ else:
     )
     myDatasets = np.array(
         [mfccwasserstein[key]['dataset']  for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
+    )
+    myHasNoise = np.array(
+        [mfccwasserstein[key]['has_noise']  for key in sorted(mfccwasserstein.keys()) if mfccwasserstein[key]['type'] % 2 == 0]
     )
     print(np.unique(myActors))
 
@@ -198,7 +202,8 @@ else:
         myData2=myData2,
         myY=myY,
         myActors=myActors,
-        myDatasets=myDatasets
+        myDatasets=myDatasets,
+        myHasNoise=myHasNoise
     )
 
     GCS_BUCKET = "simplicialcomplex-outputbucket"
@@ -230,7 +235,7 @@ def stratified_group_shuffle_split(y, groups, test_size=0.2, random_state=42):
     rng = np.random.default_rng(random_state)
 
     df = pd.DataFrame({'y': y, 'group': groups})
-    
+
     # Aggregate label info at group level
     # (majority class per group — or mean for regression-like)
     group_labels = (
@@ -238,24 +243,24 @@ def stratified_group_shuffle_split(y, groups, test_size=0.2, random_state=42):
           .agg(lambda s: s.value_counts().index[0])
           .reset_index()
     )
-    
+
     # Prepare stratified split on groups
     sss = StratifiedShuffleSplit(
         n_splits=1, test_size=test_size, random_state=random_state
     )
-    
+
     group_indices = np.arange(len(group_labels))
     for train_g, test_g in sss.split(group_indices, group_labels['y']):
         train_groups = group_labels['group'].iloc[train_g].values
         test_groups = group_labels['group'].iloc[test_g].values
-    
+
     # Map back to sample indices
     train_mask = df['group'].isin(train_groups)
     test_mask = df['group'].isin(test_groups)
-    
+
     train_idx = np.where(train_mask)[0]
     test_idx = np.where(test_mask)[0]
-    
+
     return train_idx, test_idx
 
 train_idx, test_idx = stratified_group_shuffle_split(y=np.argmax(myY, axis=1), groups=groups, test_size=0.2)
@@ -284,7 +289,7 @@ import numpy as np
 class DualInputCNN(nn.Module):
     def __init__(self, num_classes=6):
         super(DualInputCNN, self).__init__()
-        
+
         # Branch 1: for 128x128x1
         self.branch1 = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
@@ -296,7 +301,7 @@ class DualInputCNN(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(2)
         )
-        
+
         # Branch 2: for 32x32x8
         self.branch2 = nn.Sequential(
             nn.Conv2d(8, 32, kernel_size=3, padding=1),
@@ -324,21 +329,21 @@ class DualInputCNN(nn.Module):
             nn.Linear(64, num_classes)
         )
 
-    
+
     def forward(self, x1, x2):
         # Pass through each branch
         x1 = self.branch1(x1)
         x2 = self.branch2(x2)
-        
+
         # Flatten
         x1 = torch.flatten(x1, 1)
         x2 = torch.flatten(x2, 1)
 
         if not hasattr(self, 'fc1_initialized') or not self.fc1_initialized:
             merged_dim = x1.shape[1] + x2.shape[1]
-            self.fc1 = nn.Linear(merged_dim, 64).to(x1.device)  
+            self.fc1 = nn.Linear(merged_dim, 64).to(x1.device)
             self.fc1_initialized = True
-        
+
         # Merge branches
         x = torch.cat((x1, x2), dim=1)
         x = self.fc1(x)
@@ -360,9 +365,10 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 X_train_tensor = torch.tensor(X_train.transpose(0, 3, 1, 2), dtype=torch.float32)
 X_train2_tensor = torch.tensor(X_train2.transpose(0, 3, 1, 2), dtype=torch.float32)
 y_train_tensor = torch.tensor(np.argmax(y_train, axis=1), dtype=torch.long)
-X_test_tensor = torch.tensor(X_test.transpose(0, 3, 1, 2), dtype=torch.float32)
-X_test2_tensor = torch.tensor(X_test2.transpose(0, 3, 1, 2), dtype=torch.float32)
-y_test_tensor = torch.tensor(np.argmax(y_test, axis=1), dtype=torch.long)
+has_noise_idx = np.where(myHasNoise[test_idx] == 0)[0]
+X_test_tensor = torch.tensor(X_test[has_noise_idx].transpose(0, 3, 1, 2), dtype=torch.float32)
+X_test2_tensor = torch.tensor(X_test2[has_noise_idx].transpose(0, 3, 1, 2), dtype=torch.float32)
+y_test_tensor = torch.tensor(np.argmax(y_test[has_noise_idx], axis=1), dtype=torch.long)
 
 dataset = TensorDataset(X_train_tensor, X_train2_tensor, y_train_tensor)
 

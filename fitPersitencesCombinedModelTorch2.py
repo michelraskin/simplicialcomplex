@@ -13,7 +13,7 @@ from keras import backend as K
 from sklearn.preprocessing import StandardScaler
 import math
 from sklearn.datasets import load_iris
-import tensorflow as tf 
+import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import keras
 from keras.datasets import mnist
@@ -112,7 +112,7 @@ else:
                 i, j = int(i), int(j)
                 filepath = os.path.join(folder, filename)
                 data = np.load(filepath)
-                
+
                 heatmaps_dict[f'{dataset}_{actor}_{emotion}_{j // 2}_{j%2}'] = {'data': data, 'dataset': dataset, 'actor': actor, 'emotion':emotion, 'type': j}
 
         return heatmaps_dict
@@ -129,7 +129,7 @@ else:
         my_globs = glob(patterns[0])
         for pattern in patterns[1:]:
             my_globs = my_globs + glob(pattern)
-        file_list = sorted(my_globs) 
+        file_list = sorted(my_globs)
         return [np.load(file) for i, file in enumerate(file_list)]
 
     myRaw = load_spectrograms(["savee", 'tess', 'radvess', 'cremad'])
@@ -200,7 +200,7 @@ def stratified_group_shuffle_split(y, groups, test_size=0.2, random_state=42):
     rng = np.random.default_rng(random_state)
 
     df = pd.DataFrame({'y': y, 'group': groups})
-    
+
     # Aggregate label info at group level
     # (majority class per group — or mean for regression-like)
     group_labels = (
@@ -208,24 +208,24 @@ def stratified_group_shuffle_split(y, groups, test_size=0.2, random_state=42):
           .agg(lambda s: s.value_counts().index[0])
           .reset_index()
     )
-    
+
     # Prepare stratified split on groups
     sss = StratifiedShuffleSplit(
         n_splits=1, test_size=test_size, random_state=random_state
     )
-    
+
     group_indices = np.arange(len(group_labels))
     for train_g, test_g in sss.split(group_indices, group_labels['y']):
         train_groups = group_labels['group'].iloc[train_g].values
         test_groups = group_labels['group'].iloc[test_g].values
-    
+
     # Map back to sample indices
     train_mask = df['group'].isin(train_groups)
     test_mask = df['group'].isin(test_groups)
-    
+
     train_idx = np.where(train_mask)[0]
     test_idx = np.where(test_mask)[0]
-    
+
     return train_idx, test_idx
 
 train_idx, test_idx = stratified_group_shuffle_split(y=np.argmax(myY, axis=1), groups=groups, test_size=0.2)
@@ -295,7 +295,7 @@ class CNNModel(nn.Module):
         x = self.features(x)
         x = self.classifier(x)
         return x
-    
+
 class CNNModel2(nn.Module):
     def __init__(self, num_classes=6):
         super(CNNModel2, self).__init__()
@@ -333,7 +333,7 @@ class CNNModel2(nn.Module):
         x = self.features(x)
         x = self.classifier(x)
         return x
-    
+
 class FusionNet(nn.Module):
     def __init__(self, num_classes, dropout_prob=0.2):
         super().__init__()
@@ -344,7 +344,7 @@ class FusionNet(nn.Module):
         # Concatenate logits from two models
         x = torch.cat([logits1, logits2], dim=1)
         x = self.dropout(x)
-        x = self.fc(x)          
+        x = self.fc(x)
         return x
 
 # --- Instantiate model ---
@@ -421,7 +421,7 @@ for epoch in range(num_epochs):
         combined_logits = fusion(outputs, outputs2)
         loss3 = criterion(combined_logits, y_batch)
         loss3.backward()
-        
+
         train_preds.append(torch.softmax(combined_logits, dim=1))
         train_labels.append(y_batch)
 
