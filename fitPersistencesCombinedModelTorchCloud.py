@@ -95,7 +95,7 @@ import numpy as np
 class DualInputCNN(nn.Module):
     def __init__(self, num_classes=8):
         super(DualInputCNN, self).__init__()
-        
+
         # Branch 1: for 128x128x1
         self.branch1 = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
@@ -105,7 +105,7 @@ class DualInputCNN(nn.Module):
             nn.Conv2d(32, 32, kernel_size=3, padding=1),
             nn.MaxPool2d(2)
         )
-        
+
         # Branch 2: for 32x32x8
         self.branch2 = nn.Sequential(
             nn.Conv2d(8, 32, kernel_size=3, padding=1),
@@ -124,21 +124,21 @@ class DualInputCNN(nn.Module):
         self.fc1 = nn.Linear(1, 1)  # placeholder — reset after knowing sizes
         self.dropout = nn.Dropout(0.2)
         self.fc2 = nn.Linear(256, num_classes)
-    
+
     def forward(self, x1, x2):
         # Pass through each branch
         x1 = self.branch1(x1)
         x2 = self.branch2(x2)
-        
+
         # Flatten
         x1 = torch.flatten(x1, 1)
         x2 = torch.flatten(x2, 1)
 
         if not hasattr(self, 'fc1_initialized') or not self.fc1_initialized:
             merged_dim = x1.shape[1] + x2.shape[1]
-            self.fc1 = nn.Linear(merged_dim, 256).to(x1.device)  
+            self.fc1 = nn.Linear(merged_dim, 256).to(x1.device)
             self.fc1_initialized = True
-        
+
         # Merge branches
         x = torch.cat((x1, x2), dim=1)
         x = self.fc1(x)
